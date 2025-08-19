@@ -17,84 +17,90 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         body { 
             font-family: 'Inter', sans-serif; 
+            transition: background-color 0.3s, color 0.3s;
         }
     </style>
 </head>
-<body class="bg-gray-100">
+<body>
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useCallback } = React;
+        const { useState, useCallback, useEffect } = React;
 
         // --- Ícones em SVG ---
-        const UploadIcon = () => (
-            <svg className="w-6 h-6 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-4-4V7a4 4 0 014-4h10a4 4 0 014 4v5a4 4 0 01-4 4H7z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+        const ArrowDownIcon = ({ isOpen, theme }) => (
+            <svg className={`w-5 h-5 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} transition-transform duration-300 ${isOpen ? 'transform rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+        );
+        
+        const ThemeToggleIcon = ({ theme }) => (
+            theme === 'dark' ? (
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-yellow-400"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+            ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-600"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+            )
         );
 
-        const ArrowDownIcon = ({ isOpen }) => (
-            <svg className={`w-5 h-5 text-gray-500 transition-transform duration-300 ${isOpen ? 'transform rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-        );
 
         // --- Componentes da UI ---
-        const Header = () => (
+        const Header = ({ theme }) => (
             <div className="text-center mb-8">
-                <h1 className="text-3xl md:text-4xl font-bold text-gray-900">Verificador de Planilhas</h1>
-                <p className="text-gray-600 mt-2">Compare dados de funcionários entre a planilha do SOC e a da empresa.</p>
+                <h1 className={`text-3xl md:text-4xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Verificador de Planilhas</h1>
+                <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} mt-2`}>Compare dados de funcionários entre a planilha do SOC e a da empresa.</p>
             </div>
         );
 
-        const Notice = () => (
-            <div className="bg-blue-50 border-l-4 border-blue-400 text-blue-700 p-4 rounded-lg mb-8" role="alert">
+        const Notice = ({ theme }) => (
+            <div className={`${theme === 'dark' ? 'bg-gray-900 border-blue-500 text-blue-200' : 'bg-blue-50 border-blue-400 text-blue-700'} border-l-4 p-4 rounded-lg mb-8`} role="alert">
                 <p className="font-bold">Atenção!</p>
                 <p>O sistema busca por nomes de coluna como <strong>CPF</strong>, <strong>Nome</strong>, <strong>Data de Nascimento</strong>, <strong>Data de Admissão</strong> e <strong>Matrícula</strong>.</p>
             </div>
         );
 
-        const FileInput = ({ id, label, onFileSelect, fileInfo, accentColor }) => (
+        const FileInput = ({ id, label, onFileSelect, fileInfo, theme }) => (
             <div>
                 <div className="flex justify-between items-center mb-2">
-                    <label htmlFor={id} className="block text-sm font-medium text-gray-700">{label}</label>
-                    {fileInfo && <span className={`text-sm font-medium ${fileInfo.error ? 'text-red-600' : 'text-green-600'}`}>{fileInfo.message}</span>}
+                    <label htmlFor={id} className={`block text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{label}</label>
+                    {fileInfo && <span className={`text-sm font-medium ${fileInfo.error ? (theme === 'dark' ? 'text-red-400' : 'text-red-600') : (theme === 'dark' ? 'text-green-400' : 'text-green-600')}`}>{fileInfo.message}</span>}
                 </div>
                 <input
                     type="file"
                     id={id}
                     accept=".xlsx, .xls, .csv"
                     onChange={(e) => onFileSelect(e.target.files[0])}
-                    className={`block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-${accentColor}-50 file:text-${accentColor}-700 hover:file:bg-${accentColor}-100 cursor-pointer`}
+                    className={`block w-full text-sm ${theme === 'dark' ? 'text-gray-400 file:bg-gray-600 file:text-gray-200 hover:file:bg-gray-500' : 'text-gray-500 file:bg-gray-100 file:text-gray-800 hover:file:bg-gray-200'} file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold cursor-pointer`}
                 />
             </div>
         );
 
-        const Loader = ({ text }) => (
+        const Loader = ({ text, theme }) => (
             <div className="flex justify-center items-center my-6">
-                <div className="w-10 h-10 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
-                <p className="ml-4 text-gray-600">{text}</p>
+                <div className={`w-10 h-10 border-4 ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'} border-t-blue-500 rounded-full animate-spin`}></div>
+                <p className={`ml-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>{text}</p>
             </div>
         );
 
-        const SummaryCard = ({ value, label, color }) => (
-            <div className={`bg-${color}-100 p-4 rounded-lg text-center`}>
-                <p className={`text-3xl font-bold text-${color}-600`}>{value}</p>
-                <p className={`text-sm font-medium text-${color}-800`}>{label}</p>
+        const SummaryCard = ({ value, label, color, theme }) => (
+            <div className={`${theme === 'dark' ? 'bg-gray-900/50 border-gray-700' : 'bg-white border-gray-200'} p-4 rounded-lg text-center border`}>
+                <p className={`text-3xl font-bold text-${color}-${theme === 'dark' ? '400' : '600'}`}>{value}</p>
+                <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{label}</p>
             </div>
         );
 
-        const AccordionItem = ({ title, children, count }) => {
+        const AccordionItem = ({ title, children, count, theme }) => {
             const [isOpen, setIsOpen] = useState(false);
             if (count === 0) return null;
 
             return (
-                <div className="border border-gray-200 rounded-lg">
+                <div className={`border ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'} rounded-lg`}>
                     <button
                         onClick={() => setIsOpen(!isOpen)}
-                        className="w-full flex justify-between items-center p-4 bg-gray-50 hover:bg-gray-100 focus:outline-none"
+                        className={`w-full flex justify-between items-center p-4 ${theme === 'dark' ? 'bg-gray-600 hover:bg-gray-500' : 'bg-gray-50 hover:bg-gray-100'} focus:outline-none`}
                     >
-                        <span className="font-semibold text-gray-800">{title} ({count})</span>
-                        <ArrowDownIcon isOpen={isOpen} />
+                        <span className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{title} ({count})</span>
+                        <ArrowDownIcon isOpen={isOpen} theme={theme} />
                     </button>
                     <div
-                        className="overflow-hidden transition-all duration-300 ease-in-out"
+                        className={`overflow-hidden transition-all duration-300 ease-in-out ${theme === 'dark' ? 'bg-gray-700' : 'bg-white'}`}
                         style={{ maxHeight: isOpen ? '10000px' : '0px' }}
                     >
                         <div className="p-1 md:p-4">{children}</div>
@@ -165,6 +171,7 @@
 
         // --- Componente Principal ---
         function App() {
+            const [theme, setTheme] = useState('dark');
             const [socFile, setSocFile] = useState(null);
             const [companyFile, setCompanyFile] = useState(null);
             const [socFileInfo, setSocFileInfo] = useState(null);
@@ -175,6 +182,14 @@
             const [results, setResults] = useState(null);
             const [originalSocData, setOriginalSocData] = useState(null);
 
+            useEffect(() => {
+                document.body.className = theme === 'dark' ? 'bg-gray-800 text-gray-200' : 'bg-gray-100 text-gray-800';
+            }, [theme]);
+            
+            const toggleTheme = () => {
+                setTheme(prevTheme => prevTheme === 'dark' ? 'light' : 'dark');
+            };
+
             const readAndProcessSheet = (file) => {
                 return new Promise((resolve, reject) => {
                     if (!file) {
@@ -184,7 +199,6 @@
                     reader.onload = (event) => {
                         try {
                             const data = new Uint8Array(event.target.result);
-                            // XLSX é acessado globalmente a partir do script carregado no <head>
                             const workbook = XLSX.read(data, { type: 'array', cellDates: true });
 
                             let jsonData = [], headerRow = [], columnMap = {};
@@ -415,29 +429,33 @@
 
             return (
                 <div className="min-h-screen flex flex-col items-center justify-center p-4">
-                    <main className="bg-white rounded-2xl shadow-xl p-6 md:p-10 w-full max-w-4xl">
-                        <Header />
-                        <Notice />
+                    <main className={`relative ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'} rounded-2xl shadow-xl p-6 md:p-10 w-full max-w-4xl border`}>
+                        <button onClick={toggleTheme} className="absolute top-4 right-4 p-2 rounded-full bg-gray-500/20 hover:bg-gray-500/40 transition-colors">
+                            <ThemeToggleIcon theme={theme} />
+                        </button>
+                        
+                        <Header theme={theme} />
+                        <Notice theme={theme} />
                         
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                            <FileInput id="soc-file" label="1. Planilha Modelo SOC" onFileSelect={(file) => handleFileSelect(file, 'soc')} fileInfo={socFileInfo} accentColor="blue" />
-                            <FileInput id="company-file" label="2. Planilha Recente da Empresa" onFileSelect={(file) => handleFileSelect(file, 'company')} fileInfo={companyFileInfo} accentColor="green" />
+                            <FileInput id="soc-file" label="1. Planilha Modelo SOC" onFileSelect={(file) => handleFileSelect(file, 'soc')} fileInfo={socFileInfo} theme={theme} />
+                            <FileInput id="company-file" label="2. Planilha Recente da Empresa" onFileSelect={(file) => handleFileSelect(file, 'company')} fileInfo={companyFileInfo} theme={theme} />
                         </div>
 
                         <div className="text-center">
                             <button
                                 onClick={handleCompare}
                                 disabled={isLoading}
-                                className="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:bg-gray-400"
+                                className="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:bg-gray-500"
                             >
                                 {isLoading ? 'Analisando...' : 'Verificar Dados'}
                             </button>
                         </div>
 
                         <div className="mt-10">
-                            {isLoading && <Loader text="Analisando dados..." />}
+                            {isLoading && <Loader text="Analisando dados..." theme={theme} />}
                             {error && (
-                                <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg" role="alert">
+                                <div className={`${theme === 'dark' ? 'bg-red-900/50 border-red-700 text-red-300' : 'bg-red-100 border-red-500 text-red-700'} border p-4 rounded-lg`} role="alert">
                                     <p className="font-bold">{error.title}</p>
                                     <p>{error.message}</p>
                                     {error.suggestion && <p className="mt-2 text-sm"><strong>Sugestão:</strong> {error.suggestion}</p>}
@@ -446,55 +464,55 @@
                             {results && (
                                 <div>
                                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-                                        <SummaryCard value={results.socCount} label="Funcionários na SOC" color="blue" />
-                                        <SummaryCard value={results.companyCount} label="Funcionários na Empresa" color="green" />
-                                        <SummaryCard value={results.discrepancies.length} label="Divergências" color="red" />
-                                        <SummaryCard value={results.newEmployees.length} label="Novos Funcionários" color="green" />
-                                        <SummaryCard value={results.removedEmployees.length} label="Funcionários Removidos" color="purple" />
-                                        <SummaryCard value={results.invalidCpfs.length} label="CPFs Inválidos" color="yellow" />
+                                        <SummaryCard value={results.socCount} label="Funcionários na SOC" color="blue" theme={theme} />
+                                        <SummaryCard value={results.companyCount} label="Funcionários na Empresa" color="green" theme={theme} />
+                                        <SummaryCard value={results.discrepancies.length} label="Divergências" color="red" theme={theme} />
+                                        <SummaryCard value={results.newEmployees.length} label="Novos Funcionários" color="green" theme={theme} />
+                                        <SummaryCard value={results.removedEmployees.length} label="Funcionários Removidos" color="purple" theme={theme} />
+                                        <SummaryCard value={results.invalidCpfs.length} label="CPFs Inválidos" color="yellow" theme={theme} />
                                     </div>
 
                                     <div className="space-y-2">
-                                        <AccordionItem title="CPFs Inválidos" count={results.invalidCpfs.length}>
+                                        <AccordionItem title="CPFs Inválidos" count={results.invalidCpfs.length} theme={theme}>
                                             <div className="overflow-x-auto">
                                                 <table className="w-full text-sm text-left">
-                                                    <thead className="bg-gray-50 text-xs text-gray-700 uppercase"><tr><th className="px-4 py-2">Nome</th><th className="px-4 py-2">CPF Informado</th><th className="px-4 py-2">Motivo</th><th className="px-4 py-2">Origem</th></tr></thead>
-                                                    <tbody>{results.invalidCpfs.map((item, i) => <tr key={i} className="border-b"><td className="px-4 py-2">{item.name}</td><td className="px-4 py-2 font-mono text-red-600">{formatCpf(item.cpf)}</td><td className="px-4 py-2">{item.reason}</td><td className="px-4 py-2">{item.source}</td></tr>)}</tbody>
+                                                    <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-50 text-gray-700'} text-xs uppercase`}><tr><th className="px-4 py-2">Nome</th><th className="px-4 py-2">CPF Informado</th><th className="px-4 py-2">Motivo</th><th className="px-4 py-2">Origem</th></tr></thead>
+                                                    <tbody>{results.invalidCpfs.map((item, i) => <tr key={i} className={`border-b ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'}`}><td className="px-4 py-2">{item.name}</td><td className={`px-4 py-2 font-mono ${theme === 'dark' ? 'text-red-400' : 'text-red-600'}`}>{formatCpf(item.cpf)}</td><td className="px-4 py-2">{item.reason}</td><td className="px-4 py-2">{item.source}</td></tr>)}</tbody>
                                                 </table>
                                             </div>
                                         </AccordionItem>
                                         
-                                        <AccordionItem title="Divergências Encontradas" count={results.discrepancies.length}>
+                                        <AccordionItem title="Divergências Encontradas" count={results.discrepancies.length} theme={theme}>
                                             <div className="space-y-4">
                                                 {results.discrepancies.map((item, i) => (
-                                                    <div key={i} className="bg-white border rounded-lg p-4">
-                                                        <p className="font-bold text-gray-900">{item.name}</p>
-                                                        <div className="flex flex-wrap gap-x-4 text-xs text-gray-500 mb-2"><span><strong>CPF:</strong> {formatCpf(item.cpf)}</span><span><strong>Matrícula:</strong> {item.matricula}</span></div>
+                                                    <div key={i} className={`${theme === 'dark' ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'} border rounded-lg p-4`}>
+                                                        <p className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{item.name}</p>
+                                                        <div className={`flex flex-wrap gap-x-4 text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mb-2`}><span><strong>CPF:</strong> {formatCpf(item.cpf)}</span><span><strong>Matrícula:</strong> {item.matricula}</span></div>
                                                         <table className="w-full text-xs text-left mt-2">
-                                                            <thead className="bg-gray-100 text-gray-700"><tr><th className="px-3 py-1">Campo</th><th className="px-3 py-1">Valor na SOC</th><th className="px-3 py-1">Valor na Empresa</th></tr></thead>
-                                                            <tbody>{item.details.map((d, j) => <tr key={j} className="border-b last:border-b-0"><td className="px-3 py-1 font-medium">{d.field}</td><td className="px-3 py-1 bg-red-50 text-red-700">{d.socValue}</td><td className="px-3 py-1 bg-green-50 text-green-700">{d.companyValue}</td></tr>)}</tbody>
+                                                            <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-100 text-gray-700'}`}><tr><th className="px-3 py-1">Campo</th><th className="px-3 py-1">Valor na SOC</th><th className="px-3 py-1">Valor na Empresa</th></tr></thead>
+                                                            <tbody>{item.details.map((d, j) => <tr key={j} className={`border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} last:border-b-0`}><td className="px-3 py-1 font-medium">{d.field}</td><td className={`px-3 py-1 ${theme === 'dark' ? 'bg-red-900/40 text-red-300' : 'bg-red-50 text-red-700'}`}>{d.socValue}</td><td className={`px-3 py-1 ${theme === 'dark' ? 'bg-red-900/40 text-red-300' : 'bg-red-50 text-red-700'}`}>{d.companyValue}</td></tr>)}</tbody>
                                                         </table>
                                                     </div>
                                                 ))}
                                             </div>
                                         </AccordionItem>
 
-                                        <AccordionItem title="Novos Funcionários" count={results.newEmployees.length}>
+                                        <AccordionItem title="Novos Funcionários" count={results.newEmployees.length} theme={theme}>
                                             <div className="overflow-x-auto">
                                                 <table className="w-full text-sm text-left">
-                                                    <thead className="bg-gray-50 text-xs text-gray-700 uppercase"><tr><th className="px-4 py-2">Nome</th><th className="px-4 py-2">CPF</th><th className="px-4 py-2">Matrícula</th></tr></thead>
-                                                    <tbody>{results.newEmployees.map((item, i) => <tr key={i} className="border-b"><td className="px-4 py-2">{item.nome || 'Não informado'}</td><td className="px-4 py-2 font-mono">{formatCpf(item.cpf)}</td><td className="px-4 py-2">{normalizeValue(item.matricula)}</td></tr>)}</tbody>
+                                                    <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-50 text-gray-700'} text-xs uppercase`}><tr><th className="px-4 py-2">Nome</th><th className="px-4 py-2">CPF</th><th className="px-4 py-2">Matrícula</th></tr></thead>
+                                                    <tbody>{results.newEmployees.map((item, i) => <tr key={i} className={`border-b ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'}`}><td className="px-4 py-2">{item.nome || 'Não informado'}</td><td className="px-4 py-2 font-mono">{formatCpf(item.cpf)}</td><td className="px-4 py-2">{normalizeValue(item.matricula)}</td></tr>)}</tbody>
                                                 </table>
                                             </div>
                                         </AccordionItem>
 
-                                        <AccordionItem title="Funcionários Removidos/Desligados" count={results.removedEmployees.length}>
+                                        <AccordionItem title="Funcionários Removidos/Desligados" count={results.removedEmployees.length} theme={theme}>
                                             <div className="space-y-2">
                                                 {results.removedEmployees.map((item, i) => (
-                                                    <div key={i} className="p-4 border rounded-lg">
-                                                        <p className="font-semibold text-gray-800">{item.nome || 'Não informado'}</p>
-                                                        <p className="text-sm text-gray-600 font-mono">{formatCpf(item.cpf)}</p>
-                                                        <p className="text-sm text-gray-500 mt-1">{item.status}</p>
+                                                    <div key={i} className={`p-4 border ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'} rounded-lg`}>
+                                                        <p className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{item.nome || 'Não informado'}</p>
+                                                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} font-mono`}>{formatCpf(item.cpf)}</p>
+                                                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'} mt-1`}>{item.status}</p>
                                                     </div>
                                                 ))}
                                             </div>
@@ -513,7 +531,7 @@
                             )}
                         </div>
                     </main>
-                    <footer className="text-center text-sm text-gray-500 mt-8 py-4">
+                    <footer className={`text-center text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mt-8 py-4`}>
                         <p>Versão 2.0 (React) | Em caso de erro, reportar para robsonmorais@produtiva.srv.br</p>
                     </footer>
                 </div>
