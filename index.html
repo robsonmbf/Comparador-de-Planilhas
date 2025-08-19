@@ -402,7 +402,11 @@
                     updatedData.push(newRow);
                 });
                 
-                const outputData = [headers, ...updatedData.map(row => headers.map(header => row[header] || ''))];
+                const outputData = [
+                    ['Modelo 1'],
+                    headers, 
+                    ...updatedData.map(row => headers.map(header => row[header] || ''))
+                ];
                 const worksheet = XLSX.utils.aoa_to_sheet(outputData);
                 const workbook = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(workbook, worksheet, "Funcionários Atualizados");
