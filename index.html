@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comparador de Planilhas (React)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS (xlsx) para ler planilhas -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- React e ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- Babel para transpilar JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { 
+            font-family: 'Inter', sans-serif; 
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useCallback } = React;
+
+        // --- Ícones em SVG ---
+        const UploadIcon = () => (
+            <svg className="w-6 h-6 mr-2 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-4-4V7a4 4 0 014-4h10a4 4 0 014 4v5a4 4 0 01-4 4H7z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+        );
+
+        const ArrowDownIcon = ({ isOpen }) => (
+            <svg className={`w-5 h-5 text-gray-500 transition-transform duration-300 ${isOpen ? 'transform rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+        );
+
+        // --- Componentes da UI ---
+        const Header = () => (
+            <div className="text-center mb-8">
+                <h1 className="text-3xl md:text-4xl font-bold text-gray-900">Verificador de Planilhas</h1>
+                <p className="text-gray-600 mt-2">Compare dados de funcionários entre a planilha do SOC e a da empresa.</p>
+            </div>
+        );
+
+        const Notice = () => (
+            <div className="bg-blue-50 border-l-4 border-blue-400 text-blue-700 p-4 rounded-lg mb-8" role="alert">
+                <p className="font-bold">Atenção!</p>
+                <p>O sistema busca por nomes de coluna como <strong>CPF</strong>, <strong>Nome</strong>, <strong>Data de Nascimento</strong>, <strong>Data de Admissão</strong> e <strong>Matrícula</strong>.</p>
+            </div>
+        );
+
+        const FileInput = ({ id, label, onFileSelect, fileInfo, accentColor }) => (
+            <div>
+                <div className="flex justify-between items-center mb-2">
+                    <label htmlFor={id} className="block text-sm font-medium text-gray-700">{label}</label>
+                    {fileInfo && <span className={`text-sm font-medium ${fileInfo.error ? 'text-red-600' : 'text-green-600'}`}>{fileInfo.message}</span>}
+                </div>
+                <input
+                    type="file"
+                    id={id}
+                    accept=".xlsx, .xls, .csv"
+                    onChange={(e) => onFileSelect(e.target.files[0])}
+                    className={`block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-${accentColor}-50 file:text-${accentColor}-700 hover:file:bg-${accentColor}-100 cursor-pointer`}
+                />
+            </div>
+        );
+
+        const Loader = ({ text }) => (
+            <div className="flex justify-center items-center my-6">
+                <div className="w-10 h-10 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
+                <p className="ml-4 text-gray-600">{text}</p>
+            </div>
+        );
+
+        const SummaryCard = ({ value, label, color }) => (
+            <div className={`bg-${color}-100 p-4 rounded-lg text-center`}>
+                <p className={`text-3xl font-bold text-${color}-600`}>{value}</p>
+                <p className={`text-sm font-medium text-${color}-800`}>{label}</p>
+            </div>
+        );
+
+        const AccordionItem = ({ title, children, count }) => {
+            const [isOpen, setIsOpen] = useState(false);
+            if (count === 0) return null;
+
+            return (
+                <div className="border border-gray-200 rounded-lg">
+                    <button
+                        onClick={() => setIsOpen(!isOpen)}
+                        className="w-full flex justify-between items-center p-4 bg-gray-50 hover:bg-gray-100 focus:outline-none"
+                    >
+                        <span className="font-semibold text-gray-800">{title} ({count})</span>
+                        <ArrowDownIcon isOpen={isOpen} />
+                    </button>
+                    <div
+                        className="overflow-hidden transition-all duration-300 ease-in-out"
+                        style={{ maxHeight: isOpen ? '10000px' : '0px' }}
+                    >
+                        <div className="p-1 md:p-4">{children}</div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- Mapeamento e Funções Utilitárias ---
+        const columnMappings = {
+            cpf: ['CPF'],
+            nome: ['Nome Funcionário', 'Nome', 'NOME DO FUNCIONÁRIO', 'NOME COMPLETO'],
+            dataNascimento: ['Data de Nascimento', 'Dt.Nascimento', 'DATA NASCIMENTO'],
+            dataAdmissao: ['Data de Admissão', 'Dt.Admissão', 'DATA ADMISSAO'],
+            dataDemissao: ['Data de Demissão', 'Dt.Demissão', 'DATA DEMISSAO'],
+            situacao: ['Situação'],
+            matricula: ['Matrícula', 'MATRICULA e-SOCIAL DO FUNCIONÁRIO', 'MATRICULA']
+        };
+
+        const findColumnValue = (row, possibleNames) => {
+            const lowerCasePossibleNames = possibleNames.map(name => name.toLowerCase());
+            for (const key in row) {
+                if (lowerCasePossibleNames.includes(key.toLowerCase().trim())) {
+                    return row[key];
+                }
+            }
+            return undefined;
+        };
+
+        const normalizeCpf = (cpfValue) => {
+            if (cpfValue === null || typeof cpfValue === 'undefined') return '';
+            return String(cpfValue).replace(/\D/g, '');
+        };
+
+        const formatCpf = (cpf) => {
+            const cpfString = String(cpf || '').replace(/\D/g, '');
+            if (cpfString.length === 11) {
+                return cpfString.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+            }
+            return cpf;
+        }
+
+        const normalizeName = (nameValue) => {
+            if (nameValue === null || typeof nameValue === 'undefined') return '';
+            return String(nameValue).toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        };
+
+        const normalizeValue = (value) => {
+            if (value === null || typeof value === 'undefined') return '';
+            if (value instanceof Date) {
+                const adjustedDate = new Date(value.getTime() + Math.abs(value.getTimezoneOffset() * 60000));
+                return `${String(adjustedDate.getUTCDate()).padStart(2, '0')}/${String(adjustedDate.getUTCMonth() + 1).padStart(2, '0')}/${adjustedDate.getUTCFullYear()}`;
+            }
+            const stringValue = String(value).trim();
+            const dateMatch = stringValue.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+            if (dateMatch) {
+                return `${dateMatch[1].padStart(2, '0')}/${dateMatch[2].padStart(2, '0')}/${dateMatch[3]}`;
+            }
+            return stringValue;
+        };
+
+        const getCpfInvalidityReason = (originalCpf) => {
+            const normalized = normalizeCpf(originalCpf);
+            if (!normalized) return "CPF em branco";
+            if (normalized.length !== 11) return `Contém ${normalized.length} dígitos (esperado 11)`;
+            return null;
+        };
+
+        // --- Componente Principal ---
+        function App() {
+            const [socFile, setSocFile] = useState(null);
+            const [companyFile, setCompanyFile] = useState(null);
+            const [socFileInfo, setSocFileInfo] = useState(null);
+            const [companyFileInfo, setCompanyFileInfo] = useState(null);
+
+            const [isLoading, setIsLoading] = useState(false);
+            const [error, setError] = useState(null);
+            const [results, setResults] = useState(null);
+            const [originalSocData, setOriginalSocData] = useState(null);
+
+            const readAndProcessSheet = (file) => {
+                return new Promise((resolve, reject) => {
+                    if (!file) {
+                        return reject(new Error("Arquivo não fornecido."));
+                    }
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        try {
+                            const data = new Uint8Array(event.target.result);
+                            // XLSX é acessado globalmente a partir do script carregado no <head>
+                            const workbook = XLSX.read(data, { type: 'array', cellDates: true });
+
+                            let jsonData = [], headerRow = [], columnMap = {};
+                            let foundHeader = false;
+
+                            for (const sheetName of workbook.SheetNames) {
+                                const worksheet = workbook.Sheets[sheetName];
+                                const dataAsArray = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+                                if (dataAsArray.length === 0) continue;
+
+                                let headerIndex = -1;
+                                const keywords = ['cpf', 'nome', 'nascimento', 'admissão', 'matrícula'];
+                                for (let i = 0; i < Math.min(dataAsArray.length, 10); i++) {
+                                    const rowString = dataAsArray[i].join(' ').toLowerCase();
+                                    if (keywords.filter(k => rowString.includes(k)).length >= 3) {
+                                        headerIndex = i;
+                                        break;
+                                    }
+                                }
+
+                                if (headerIndex !== -1) {
+                                    headerRow = dataAsArray[headerIndex].map(h => String(h).trim());
+                                    const dataRows = dataAsArray.slice(headerIndex + 1);
+                                    jsonData = dataRows.map(row => {
+                                        const obj = {};
+                                        headerRow.forEach((key, index) => { if (key) obj[key] = row[index]; });
+                                        return obj;
+                                    }).filter(obj => Object.values(obj).some(val => val !== ""));
+                                    
+                                    for (const standardKey in columnMappings) {
+                                        const foundHeaderName = headerRow.find(h => columnMappings[standardKey].map(n => n.toLowerCase()).includes(h.toLowerCase()));
+                                        if (foundHeaderName) columnMap[standardKey] = foundHeaderName;
+                                    }
+                                    
+                                    foundHeader = true;
+                                    break;
+                                }
+                            }
+                            if (!foundHeader) throw new Error("Não foi possível encontrar uma linha de cabeçalho (com colunas como CPF, Nome, etc.).");
+                            resolve({ jsonData, headerRow, columnMap });
+                        } catch (e) {
+                            reject(e);
+                        }
+                    };
+                    reader.onerror = (e) => reject(new Error("Erro ao ler o arquivo: " + e));
+                    reader.readAsArrayBuffer(file);
+                });
+            };
+
+            const handleFileSelect = async (file, fileType) => {
+                const setFile = fileType === 'soc' ? setSocFile : setCompanyFile;
+                const setInfo = fileType === 'soc' ? setSocFileInfo : setCompanyFileInfo;
+                
+                setFile(file);
+                if (!file) {
+                    setInfo(null);
+                    return;
+                }
+
+                setInfo({ message: 'Lendo...' });
+                try {
+                    const { jsonData } = await readAndProcessSheet(file);
+                    const validData = jsonData.filter(row => getCpfInvalidityReason(findColumnValue(row, columnMappings.cpf)) === null);
+                    setInfo({ message: `${validData.length} funcionários` });
+                } catch (error) {
+                    setInfo({ message: 'Erro ao ler', error: true });
+                    console.error(`Erro ao ler o arquivo ${fileType}:`, error);
+                }
+            };
+            
+            const handleCompare = useCallback(async () => {
+                if (!socFile || !companyFile) {
+                    setError({ title: 'Arquivos Faltando', message: 'Por favor, selecione os dois arquivos de planilha para continuar.' });
+                    setResults(null);
+                    return;
+                }
+                
+                setIsLoading(true);
+                setError(null);
+                setResults(null);
+
+                try {
+                    const socFileData = await readAndProcessSheet(socFile);
+                    setOriginalSocData({ raw: socFileData.jsonData, headers: socFileData.headerRow, columnMap: socFileData.columnMap });
+                    
+                    const companyFileData = await readAndProcessSheet(companyFile);
+
+                    const standardizeData = (data) => data.map(row => ({
+                        cpf: findColumnValue(row, columnMappings.cpf),
+                        nome: findColumnValue(row, columnMappings.nome),
+                        dataNascimento: findColumnValue(row, columnMappings.dataNascimento),
+                        dataAdmissao: findColumnValue(row, columnMappings.dataAdmissao),
+                        dataDemissao: findColumnValue(row, columnMappings.dataDemissao),
+                        situacao: findColumnValue(row, columnMappings.situacao),
+                        matricula: findColumnValue(row, columnMappings.matricula)
+                    }));
+                    
+                    const socData = standardizeData(socFileData.jsonData);
+                    const companyData = standardizeData(companyFileData.jsonData);
+                    
+                    const invalidCpfs = [];
+                    const filterValidData = (data, source) => data.filter(row => {
+                        const reason = getCpfInvalidityReason(row.cpf);
+                        if (reason) {
+                            invalidCpfs.push({ name: row.nome || 'Não informado', cpf: normalizeValue(row.cpf) || 'Vazio', source, reason });
+                            return false;
+                        }
+                        return true;
+                    });
+
+                    const validSocData = filterValidData(socData, 'Planilha SOC');
+                    const validCompanyData = filterValidData(companyData, 'Planilha da Empresa');
+                    
+                    const discrepancies = [], newEmployees = [], socMap = new Map();
+                    validSocData.forEach(row => socMap.set(normalizeCpf(row.cpf), row));
+
+                    validCompanyData.forEach(companyRow => {
+                        const companyCpf = normalizeCpf(companyRow.cpf);
+                        const socRow = socMap.get(companyCpf);
+
+                        if (socRow) {
+                            const employeeDiscrepancies = [];
+                            const fieldsToCompare = {
+                                'Nome': { soc: socRow.nome, comp: companyRow.nome, normalize: normalizeName },
+                                'Data de Nascimento': { soc: socRow.dataNascimento, comp: companyRow.dataNascimento, normalize: normalizeValue },
+                                'Data de Admissão': { soc: socRow.dataAdmissao, comp: companyRow.dataAdmissao, normalize: normalizeValue },
+                                'Matrícula': { soc: socRow.matricula, comp: companyRow.matricula, normalize: normalizeValue },
+                                'Data de Demissão': { soc: socRow.dataDemissao, comp: companyRow.dataDemissao, normalize: normalizeValue }
+                            };
+
+                            for (const field in fieldsToCompare) {
+                                const { soc, comp, normalize } = fieldsToCompare[field];
+                                if (normalize(soc) !== normalize(comp)) {
+                                    employeeDiscrepancies.push({ field, socValue: normalizeValue(soc) || 'Vazio', companyValue: normalizeValue(comp) || 'Vazio' });
+                                }
+                            }
+
+                            if (employeeDiscrepancies.length > 0) {
+                                discrepancies.push({
+                                    cpf: normalizeValue(companyRow.cpf),
+                                    name: companyRow.nome || `Funcionário com CPF ${normalizeValue(companyRow.cpf)}`,
+                                    matricula: normalizeValue(companyRow.matricula) || 'Não informada',
+                                    details: employeeDiscrepancies
+                                });
+                            }
+                            socMap.delete(companyCpf);
+                        } else {
+                            newEmployees.push(companyRow);
+                        }
+                    });
+
+                    const removedEmployees = Array.from(socMap.values()).map(emp => ({
+                        ...emp,
+                        status: normalizeValue(emp.dataDemissao) 
+                            ? `Desligado (em ${normalizeValue(emp.dataDemissao)}) e não consta na Planilha da Empresa` 
+                            : 'Não consta na Planilha da Empresa'
+                    }));
+                    
+                    setResults({ discrepancies, newEmployees, invalidCpfs, removedEmployees, socCount: validSocData.length, companyCount: validCompanyData.length });
+
+                } catch (e) {
+                    console.error("Erro na comparação:", e);
+                    setError({ title: `Erro ao Processar Arquivo`, message: e.message, suggestion: "Verifique se o arquivo não está corrompido e se os nomes das colunas estão corretos. Tente salvar a planilha no formato .xlsx." });
+                } finally {
+                    setIsLoading(false);
+                }
+            }, [socFile, companyFile]);
+
+            const handleClear = () => {
+                setSocFile(null);
+                setCompanyFile(null);
+                setSocFileInfo(null);
+                setCompanyFileInfo(null);
+                setResults(null);
+                setError(null);
+                setIsLoading(false);
+                setOriginalSocData(null);
+                document.getElementById('soc-file').value = '';
+                document.getElementById('company-file').value = '';
+            };
+            
+            const handleExport = () => {
+                if (!originalSocData || !results) {
+                    alert("Não há dados para exportar.");
+                    return;
+                }
+
+                let updatedData = JSON.parse(JSON.stringify(originalSocData.raw));
+                const { columnMap, headers } = originalSocData;
+                
+                const situacaoHeader = columnMap.situacao;
+                const cpfHeader = columnMap.cpf;
+
+                if (!situacaoHeader || !cpfHeader) {
+                    alert("Não foi possível encontrar as colunas 'Situação' ou 'CPF' na planilha SOC para atualizar.");
+                    return;
+                }
+                
+                const removedCpfSet = new Set(results.removedEmployees.map(emp => normalizeCpf(emp.cpf)));
+                updatedData.forEach(row => {
+                    if (removedCpfSet.has(normalizeCpf(row[cpfHeader]))) {
+                        row[situacaoHeader] = 'N';
+                    }
+                });
+
+                results.newEmployees.forEach(newEmp => {
+                    const newRow = {};
+                    headers.forEach(header => { newRow[header] = ''; });
+                    for (const key in columnMap) {
+                        if (columnMap[key] && newEmp[key] !== undefined) {
+                            newRow[columnMap[key]] = newEmp[key];
+                        }
+                    }
+                    newRow[situacaoHeader] = 'S';
+                    updatedData.push(newRow);
+                });
+                
+                const outputData = [headers, ...updatedData.map(row => headers.map(header => row[header] || ''))];
+                const worksheet = XLSX.utils.aoa_to_sheet(outputData);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Funcionários Atualizados");
+                XLSX.writeFile(workbook, "Planilha_SOC_Atualizada.xlsx");
+            };
+
+            return (
+                <div className="min-h-screen flex flex-col items-center justify-center p-4">
+                    <main className="bg-white rounded-2xl shadow-xl p-6 md:p-10 w-full max-w-4xl">
+                        <Header />
+                        <Notice />
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                            <FileInput id="soc-file" label="1. Planilha Modelo SOC" onFileSelect={(file) => handleFileSelect(file, 'soc')} fileInfo={socFileInfo} accentColor="blue" />
+                            <FileInput id="company-file" label="2. Planilha Recente da Empresa" onFileSelect={(file) => handleFileSelect(file, 'company')} fileInfo={companyFileInfo} accentColor="green" />
+                        </div>
+
+                        <div className="text-center">
+                            <button
+                                onClick={handleCompare}
+                                disabled={isLoading}
+                                className="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:bg-gray-400"
+                            >
+                                {isLoading ? 'Analisando...' : 'Verificar Dados'}
+                            </button>
+                        </div>
+
+                        <div className="mt-10">
+                            {isLoading && <Loader text="Analisando dados..." />}
+                            {error && (
+                                <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded-lg" role="alert">
+                                    <p className="font-bold">{error.title}</p>
+                                    <p>{error.message}</p>
+                                    {error.suggestion && <p className="mt-2 text-sm"><strong>Sugestão:</strong> {error.suggestion}</p>}
+                                </div>
+                            )}
+                            {results && (
+                                <div>
+                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
+                                        <SummaryCard value={results.socCount} label="Funcionários na SOC" color="blue" />
+                                        <SummaryCard value={results.companyCount} label="Funcionários na Empresa" color="green" />
+                                        <SummaryCard value={results.discrepancies.length} label="Divergências" color="red" />
+                                        <SummaryCard value={results.newEmployees.length} label="Novos Funcionários" color="green" />
+                                        <SummaryCard value={results.removedEmployees.length} label="Funcionários Removidos" color="purple" />
+                                        <SummaryCard value={results.invalidCpfs.length} label="CPFs Inválidos" color="yellow" />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <AccordionItem title="CPFs Inválidos" count={results.invalidCpfs.length}>
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full text-sm text-left">
+                                                    <thead className="bg-gray-50 text-xs text-gray-700 uppercase"><tr><th className="px-4 py-2">Nome</th><th className="px-4 py-2">CPF Informado</th><th className="px-4 py-2">Motivo</th><th className="px-4 py-2">Origem</th></tr></thead>
+                                                    <tbody>{results.invalidCpfs.map((item, i) => <tr key={i} className="border-b"><td className="px-4 py-2">{item.name}</td><td className="px-4 py-2 font-mono text-red-600">{formatCpf(item.cpf)}</td><td className="px-4 py-2">{item.reason}</td><td className="px-4 py-2">{item.source}</td></tr>)}</tbody>
+                                                </table>
+                                            </div>
+                                        </AccordionItem>
+                                        
+                                        <AccordionItem title="Divergências Encontradas" count={results.discrepancies.length}>
+                                            <div className="space-y-4">
+                                                {results.discrepancies.map((item, i) => (
+                                                    <div key={i} className="bg-white border rounded-lg p-4">
+                                                        <p className="font-bold text-gray-900">{item.name}</p>
+                                                        <div className="flex flex-wrap gap-x-4 text-xs text-gray-500 mb-2"><span><strong>CPF:</strong> {formatCpf(item.cpf)}</span><span><strong>Matrícula:</strong> {item.matricula}</span></div>
+                                                        <table className="w-full text-xs text-left mt-2">
+                                                            <thead className="bg-gray-100 text-gray-700"><tr><th className="px-3 py-1">Campo</th><th className="px-3 py-1">Valor na SOC</th><th className="px-3 py-1">Valor na Empresa</th></tr></thead>
+                                                            <tbody>{item.details.map((d, j) => <tr key={j} className="border-b last:border-b-0"><td className="px-3 py-1 font-medium">{d.field}</td><td className="px-3 py-1 bg-red-50 text-red-700">{d.socValue}</td><td className="px-3 py-1 bg-green-50 text-green-700">{d.companyValue}</td></tr>)}</tbody>
+                                                        </table>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </AccordionItem>
+
+                                        <AccordionItem title="Novos Funcionários" count={results.newEmployees.length}>
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full text-sm text-left">
+                                                    <thead className="bg-gray-50 text-xs text-gray-700 uppercase"><tr><th className="px-4 py-2">Nome</th><th className="px-4 py-2">CPF</th><th className="px-4 py-2">Matrícula</th></tr></thead>
+                                                    <tbody>{results.newEmployees.map((item, i) => <tr key={i} className="border-b"><td className="px-4 py-2">{item.nome || 'Não informado'}</td><td className="px-4 py-2 font-mono">{formatCpf(item.cpf)}</td><td className="px-4 py-2">{normalizeValue(item.matricula)}</td></tr>)}</tbody>
+                                                </table>
+                                            </div>
+                                        </AccordionItem>
+
+                                        <AccordionItem title="Funcionários Removidos/Desligados" count={results.removedEmployees.length}>
+                                            <div className="space-y-2">
+                                                {results.removedEmployees.map((item, i) => (
+                                                    <div key={i} className="p-4 border rounded-lg">
+                                                        <p className="font-semibold text-gray-800">{item.nome || 'Não informado'}</p>
+                                                        <p className="text-sm text-gray-600 font-mono">{formatCpf(item.cpf)}</p>
+                                                        <p className="text-sm text-gray-500 mt-1">{item.status}</p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </AccordionItem>
+                                    </div>
+
+                                    <div className="mt-8 text-center space-y-2 md:space-y-0 md:space-x-4">
+                                        <button onClick={handleExport} className="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition-colors duration-300 w-full md:w-auto">
+                                            Exportar Planilha SOC Atualizada
+                                        </button>
+                                        <button onClick={handleClear} className="bg-gray-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-gray-600 transition-colors duration-300 w-full md:w-auto">
+                                            Limpar
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </main>
+                    <footer className="text-center text-sm text-gray-500 mt-8 py-4">
+                        <p>Versão 2.0 (React) | Em caso de erro, contate o suporte.</p>
+                    </footer>
+                </div>
+            );
+        }
+        
+        const container = document.getElementById('root');
+        const root = ReactDOM.createRoot(container);
+        root.render(<App />);
+
+    </script>
+</body>
+</html>
