@@ -117,6 +117,7 @@
             dataAdmissao: ['Data de Admissão', 'Dt.Admissão', 'DATA ADMISSAO'],
             dataDemissao: ['Data de Demissão', 'Dt.Demissão', 'DATA DEMISSAO'],
             situacao: ['Situação'],
+            sexo: ['Sexo'],
             matricula: ['Matrícula', 'MATRICULA e-SOCIAL DO FUNCIONÁRIO', 'MATRICULA'],
             codFuncionario: ['Cod Funcionário', 'Cód. Funcionário', 'Código do Funcionário'],
             nomeCargo: ['Cargo', 'Nome Cargo', 'Função'],
@@ -210,6 +211,7 @@
             dataAdmissao: findColumnValue(row, columnMappings.dataAdmissao),
             dataDemissao: findColumnValue(row, columnMappings.dataDemissao),
             situacao: findColumnValue(row, columnMappings.situacao),
+            sexo: findColumnValue(row, columnMappings.sexo),
             matricula: findColumnValue(row, columnMappings.matricula),
             codFuncionario: findColumnValue(row, columnMappings.codFuncionario),
             nomeCargo: findColumnValue(row, columnMappings.nomeCargo),
@@ -327,6 +329,13 @@
         const UpdateNotesModal = ({ isOpen, onClose, theme }) => {
              const updateHistory = [
                 {
+                    version: "4.2",
+                    notes: [
+                        { type: 'improvement', text: 'Otimização do layout para se adaptar ao conteúdo, com barra de rolagem principal.' },
+                        { type: 'improvement', text: 'Correção na quebra de linha dos CPFs nas tabelas.' },
+                    ]
+                },
+                {
                     version: "4.1",
                     notes: [
                         { type: 'feature', text: 'Modo "Gerar Modelo SOC": Carregue a planilha da empresa para gerar um "Modelo 1" pronto para importação.' },
@@ -357,8 +366,8 @@
                              <div>
                                 <p className="font-semibold text-green-400">Melhorias nesta versão:</p>
                                 <ul className="list-disc list-inside space-y-1 mt-2">
-                                    <li>Otimização do layout para se adaptar ao conteúdo, com barra de rolagem principal.</li>
-                                    <li>Correção na quebra de linha dos CPFs nas tabelas.</li>
+                                    <li>**Geração de Modelo SOC Aprimorada:** Agora preenche automaticamente Cod. Funcionário, Nome Setor e Nome Cargo, com formatação inteligente de texto.</li>
+                                    <li>**Validação de Dados:** Antes de gerar o modelo, o sistema verifica se dados essenciais estão faltando e informa o usuário.</li>
                                 </ul>
                             </div>
                             <hr className={theme === 'dark' ? 'border-gray-600' : 'border-gray-300'} />
@@ -747,6 +756,17 @@
                     const companyFileData = await readAndProcessSheet(companyFile);
                     const standardizedData = standardizeData(companyFileData.jsonData);
 
+                    const requiredFields = ['nome', 'cpf', 'dataNascimento', 'dataAdmissao', 'matricula', 'nomeCargo', 'nomeSetor'];
+                    const employeesWithMissingData = standardizedData.map((emp, index) => {
+                        const missing = requiredFields.filter(field => !emp[field]);
+                        return { ...emp, missing, index: index + 1 };
+                    }).filter(emp => emp.missing.length > 0);
+
+                    if (employeesWithMissingData.length > 0) {
+                        const errorMsg = "Dados obrigatórios faltando para os seguintes funcionários: " + employeesWithMissingData.map(e => `Linha ${e.index} (${e.nome || 'Nome não encontrado'})`).join(', ');
+                        throw new Error(errorMsg);
+                    }
+
                     const modelHeaders = ["Cod.Unid","Nome Unidade","Cod.Setor","Nome Setor","Cod.Cargo","Nome Cargo","Matrícula","Cod Funcionário","Nome Funcionário","Dt.Nascimento","Sexo","Situação","Dt.Admissão","Dt.Demissão","Estado Civil","Pis/Pasep","Contratação","Rg","UF-RG","CPF","CTPS","Endereço","Bairro","Cidade","UF","Cep","Tel","Naturalidade","Cor","E-mail","Deficiencia","CBO","GFIP","Endereço Unidade","Bairro Unidade","Cidade Unidade","Estado Unidade","Cep Unidade","CNPJ Unidade","Inscrição Unidade","Tel1 Unidade","Tel2 Unidade","Tel3 Unidade","Tel4 Unidade","Contato Unid","Cnae","Número Endereço Funcionário","Complemento Endereço Funcionário","Razão Social Unid.","Nome da Mae do Funcionário","Cod.Centro Custo","Dt. Ultima Movimentação","Cod. Unidade contratante","Razão Social","CNPJ","Turno","Dt.Emissão.Cart.Prof","Série CTPS","CNAE 2.0","CNAE Livre","Descrição CNAE Livre","CEI","Função","CNAE 7","Tipo de CNAE Utilizado","Descrição Detalhada do Cargo","Nº endereço Unidade","Complemento endereço Unidade","Regime de Revezamento","Orgão Expedidor do RG","Campo Livre 1","Campo Livre 2","Campo Livre 3","Telefone SMS","Grau de Risco","UF CTPS","Nome Centro Custo","Autoriza SMS","Endereço Cobrança Unidade","Número Endereço Cobrança Unidade","Bairro Cobrança Unidade","Cidade Cobrança Unidade","Estado Cobrança Unidade","Cep Cobrança Unidade","Complemento Endereço Cobrança Unidade","Remuneração Mensal (R$)","Telefone Comercial","Telefone Celular","Data Emissão RG","Código do País de Nascimento","Origem Descrição Detalhada","Unidade Contratante","Escolaridade","Código Categoria (eSocial)","Matrícula RH","Gênero","Nome Social","Tipo de Admissão","Grau de Instrução","Nome do Pai do Funcionário","Tipo de Vínculo","Nome do Turno","Campo Livre 4","CPF Unidade","CAEPF Unidade","Tipo Sanguíneo","Dt. Inicio Periodo Aquisitivo","Dt. Fim Periodo Aquisitivo","CNO Unidade","Desconsiderar para o eSocial","Dt. Validade RG","Desconsiderar Unidade para o eSocial"];
 
                     const outputData = [
@@ -765,6 +785,7 @@
                             row[11] = 'S'; // Situação
                             row[3] = formatTitleCase(emp.nomeSetor); // Nome Setor
                             row[5] = formatTitleCase(emp.nomeCargo); // Nome Cargo
+                            row[10] = (emp.sexo && emp.sexo.toUpperCase().startsWith('M')) ? 'M' : (emp.sexo && emp.sexo.toUpperCase().startsWith('F')) ? 'F' : ''; // Sexo
                             return row;
                         })
                     ];
@@ -775,7 +796,7 @@
                     XLSX.writeFile(workbook, "Modelo_SOC_Gerado.xlsx");
 
                 } catch (e) {
-                     setError({ title: `Erro ao Gerar Modelo`, message: e.message, suggestion: "Verifique o arquivo da empresa e tente novamente." });
+                     setError({ title: `Erro ao Gerar Modelo`, message: e.message, suggestion: "Verifique se o arquivo da empresa possui todos os dados obrigatórios e tente novamente." });
                 } finally {
                     setIsLoading(false);
                 }
@@ -965,7 +986,7 @@
                         </div>
                     </main>
                     <footer className={`text-center text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mt-8 py-4`}>
-                        <p>Versão 4.2 (React) | Em caso de erro, reportar para robsonmorais@produtiva.srv.br</p>
+                        <p>Versão 4.3 (React) | Em caso de erro, reportar para robsonmorais@produtiva.srv.br</p>
                     </footer>
                     <ChatModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} theme={theme} />
                     <UpdateNotesModal isOpen={isUpdateModalOpen} onClose={handleCloseUpdateModal} theme={theme} />
