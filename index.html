@@ -518,13 +518,13 @@
                                     <p className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{item.name}</p>
                                     <div className={`flex flex-wrap gap-x-4 text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mb-2`}><span><strong>CPF:</strong> {formatCpf(item.cpf)}</span>{ !item.isInternal && <span><strong>Matrícula:</strong> {item.matricula}</span>}</div>
                                     {item.isInternal ? (
-                                        <table className="w-full text-xs text-left mt-2">
-                                            <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-100 text-gray-700'}`}><tr><th className="px-3 py-1">Cod Funcionário</th><th className="px-3 py-1">Situação no SOC</th></tr></thead>
+                                        <table className="w-full text-xs text-left mt-2 table-fixed">
+                                            <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-100 text-gray-700'}`}><tr><th className="px-3 py-1 w-1/2">Cod Funcionário</th><th className="px-3 py-1 w-1/2">Situação no SOC</th></tr></thead>
                                             <tbody>{item.details.map((d, j) => <tr key={j} className={`border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} last:border-b-0`}><td className={`px-3 py-1 ${theme === 'dark' ? 'bg-red-900/40 text-red-300' : 'bg-red-50 text-red-700'}`}>{d.codFuncionario}</td><td className={`px-3 py-1 ${theme === 'dark' ? 'bg-red-900/40 text-red-300' : 'bg-red-50 text-red-700'}`}>{d.situacao}</td></tr>)}</tbody>
                                         </table>
                                     ) : (
-                                        <table className="w-full text-xs text-left mt-2">
-                                            <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-100 text-gray-700'}`}><tr><th className="px-3 py-1">Campo</th><th className="px-3 py-1">Valor no SOC</th><th className="px-3 py-1">Valor na Empresa</th></tr></thead>
+                                        <table className="w-full text-xs text-left mt-2 table-fixed">
+                                            <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-100 text-gray-700'}`}><tr><th className="px-3 py-1 w-[30%]">Campo</th><th className="px-3 py-1 w-[35%]">Valor no SOC</th><th className="px-3 py-1 w-[35%]">Valor na Empresa</th></tr></thead>
                                             <tbody>{item.details.map((d, j) => <tr key={j} className={`border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} last:border-b-0`}><td className="px-3 py-1 font-medium">{d.field}</td><td className={`px-3 py-1 ${theme === 'dark' ? 'bg-red-900/40 text-red-300' : 'bg-red-50 text-red-700'}`}>{d.socValue}</td><td className={`px-3 py-1 ${theme === 'dark' ? 'bg-red-900/40 text-red-300' : 'bg-red-50 text-red-700'}`}>{d.companyValue}</td></tr>)}</tbody>
                                         </table>
                                     )}
@@ -631,7 +631,7 @@
                         </div>
                     </main>
                     <footer className={`text-center text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mt-8 py-4`}>
-                        <p>Versão 3.3 (React) | Em caso de erro, reportar para robsonmorais@produtiva.srv.br</p>
+                        <p>Versão 3.4 (React) | Em caso de erro, reportar para robsonmorais@produtiva.srv.br</p>
                     </footer>
                 </div>
             );
