@@ -41,6 +41,8 @@
     <script type="text/babel">
         const { useState, useCallback, useEffect, useRef } = React;
 
+        const APP_VERSION = "4.0";
+
         // --- Ícones em SVG ---
         const ThemeToggleIcon = ({ theme }) => (
             theme === 'dark' ? (
@@ -280,12 +282,46 @@
             );
         };
 
+        // --- Componente de Notas de Atualização ---
+        const UpdateNotesModal = ({ isOpen, onClose, theme }) => {
+            if (!isOpen) return null;
+
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className={`w-full max-w-lg rounded-lg shadow-2xl ${theme === 'dark' ? 'bg-gray-800 border border-gray-700' : 'bg-white'}`}>
+                        <div className={`p-4 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} flex justify-between items-center`}>
+                            <h3 className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Novidades da Versão {APP_VERSION}</h3>
+                            <button onClick={onClose} className={`${theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-800'}`}>&times;</button>
+                        </div>
+                        <div className="p-6 space-y-4 text-sm">
+                            <p className="font-semibold text-blue-400">Nova Funcionalidade:</p>
+                            <ul className="list-disc list-inside space-y-1">
+                                <li>**Modo "Gerar Modelo SOC":** Agora você pode carregar apenas a planilha da empresa para gerar e baixar um "Modelo 1" pronto para importação.</li>
+                            </ul>
+                            <p className="font-semibold text-green-400">Melhorias:</p>
+                             <ul className="list-disc list-inside space-y-1">
+                                <li>**Detecção de Dados Misturados:** O sistema agora identifica CPFs associados a matrículas diferentes e nomes idênticos com CPFs diferentes entre as planilhas.</li>
+                                <li>**Layout de "Novos Funcionários":** A visualização agora mostra a lista detalhada completa.</li>
+                                <li>**Nomenclatura:** Os cabeçalhos de divergência foram atualizados para maior clareza.</li>
+                            </ul>
+                        </div>
+                        <div className={`p-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} text-right`}>
+                             <button onClick={onClose} className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
+                                Entendido
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )
+        };
+
         // --- Componente Principal ---
         function App() {
             const [theme, setTheme] = useState('dark');
             const [mode, setMode] = useState('compare');
             const [activeDetail, setActiveDetail] = useState(null);
             const [isChatOpen, setIsChatOpen] = useState(false);
+            const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
             const [socFile, setSocFile] = useState(null);
             const [companyFile, setCompanyFile] = useState(null);
             const [socFileInfo, setSocFileInfo] = useState(null);
@@ -295,6 +331,18 @@
             const [error, setError] = useState(null);
             const [results, setResults] = useState(null);
             const [originalSocData, setOriginalSocData] = useState(null);
+
+            useEffect(() => {
+                const seenVersion = localStorage.getItem('appVersion');
+                if (seenVersion !== APP_VERSION) {
+                    setIsUpdateModalOpen(true);
+                }
+            }, []);
+
+            const handleCloseUpdateModal = () => {
+                localStorage.setItem('appVersion', APP_VERSION);
+                setIsUpdateModalOpen(false);
+            };
 
             useEffect(() => {
                 document.body.className = theme === 'dark' ? 'bg-gray-800 text-gray-200' : 'bg-gray-100 text-gray-800';
@@ -568,7 +616,9 @@
                 setOriginalSocData(null);
                 setActiveDetail(null);
                 document.getElementById('soc-file').value = '';
-                document.getElementById('company-file').value = '';
+                if(document.getElementById('company-file')) {
+                    document.getElementById('company-file').value = '';
+                }
             };
             
             const handleExport = () => {
@@ -616,6 +666,45 @@
                 const workbook = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(workbook, worksheet, "Funcionários Atualizados");
                 XLSX.writeFile(workbook, "Planilha_SOC_Atualizada.xlsx");
+            };
+
+            const handleGenerateModel = async () => {
+                if (!companyFile) {
+                    setError({ title: 'Arquivo Faltando', message: 'Por favor, selecione a planilha da empresa para gerar o modelo.' });
+                    return;
+                }
+                setIsLoading(true);
+                setError(null);
+                try {
+                    const companyFileData = await readAndProcessSheet(companyFile);
+                    const standardizedData = standardizeData(companyFileData.jsonData);
+
+                    const modelHeaders = ["Cod Funcionário", "Nome Funcionário", "CPF", "Data de Nascimento", "Data de Admissão", "Matrícula", "Situação"];
+
+                    const outputData = [
+                        ['Modelo 1'],
+                        modelHeaders,
+                        ...standardizedData.map(emp => [
+                            '', // Cod Funcionário
+                            emp.nome || '',
+                            emp.cpf || '',
+                            emp.dataNascimento || '',
+                            emp.dataAdmissao || '',
+                            emp.matricula || '',
+                            'S' // Situação
+                        ])
+                    ];
+
+                    const worksheet = XLSX.utils.aoa_to_sheet(outputData);
+                    const workbook = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(workbook, worksheet, "Modelo SOC Gerado");
+                    XLSX.writeFile(workbook, "Modelo_SOC_Gerado.xlsx");
+
+                } catch (e) {
+                     setError({ title: `Erro ao Gerar Modelo`, message: e.message, suggestion: "Verifique o arquivo da empresa e tente novamente." });
+                } finally {
+                    setIsLoading(false);
+                }
             };
 
             const EmployeeList = ({ employees, theme }) => (
@@ -723,22 +812,38 @@
                         </button>
                         
                         <Header theme={theme} />
-                        <Notice theme={theme} />
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                            <FileInput id="soc-file" label="1. Planilha Modelo SOC" onFileSelect={(file) => handleFileSelect(file, 'soc')} fileInfo={socFileInfo} theme={theme} />
-                            <FileInput id="company-file" label="2. Planilha Recente da Empresa" onFileSelect={(file) => handleFileSelect(file, 'company')} fileInfo={companyFileInfo} theme={theme} />
-                        </div>
 
-                        <div className="text-center">
-                            <button
-                                onClick={handleCompare}
-                                disabled={isLoading}
-                                className="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:bg-gray-500"
-                            >
-                                {isLoading ? 'Analisando...' : 'Verificar Dados'}
-                            </button>
+                        <div className={`flex justify-center mb-8 p-1 rounded-lg ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'}`}>
+                            <button onClick={() => setMode('compare')} className={`w-1/2 py-2 rounded-md font-semibold transition-colors ${mode === 'compare' ? 'bg-blue-600 text-white' : (theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-300')}`}>Comparar Planilhas</button>
+                            <button onClick={() => setMode('generate')} className={`w-1/2 py-2 rounded-md font-semibold transition-colors ${mode === 'generate' ? 'bg-blue-600 text-white' : (theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-300')}`}>Gerar Modelo SOC</button>
                         </div>
+                        
+                        {mode === 'compare' ? (
+                            <>
+                                <Notice theme={theme} />
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                                    <FileInput id="soc-file" label="1. Planilha Modelo SOC" onFileSelect={(file) => handleFileSelect(file, 'soc')} fileInfo={socFileInfo} theme={theme} />
+                                    <FileInput id="company-file" label="2. Planilha Recente da Empresa" onFileSelect={(file) => handleFileSelect(file, 'company')} fileInfo={companyFileInfo} theme={theme} />
+                                </div>
+                                <div className="text-center">
+                                    <button onClick={handleCompare} disabled={isLoading} className="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:bg-gray-500">
+                                        {isLoading ? 'Analisando...' : 'Verificar Dados'}
+                                    </button>
+                                </div>
+                            </>
+                        ) : (
+                             <>
+                                <div className="mb-8">
+                                    <FileInput id="company-file-generate" label="1. Planilha da Empresa" onFileSelect={(file) => handleFileSelect(file, 'company')} fileInfo={companyFileInfo} theme={theme} />
+                                </div>
+                                <div className="text-center">
+                                    <button onClick={handleGenerateModel} disabled={isLoading} className="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:bg-gray-500">
+                                        {isLoading ? 'Gerando...' : 'Gerar Modelo SOC'}
+                                    </button>
+                                </div>
+                            </>
+                        )}
+
 
                         <div className="mt-10">
                             {isLoading && <Loader text="Analisando dados..." theme={theme} />}
@@ -749,7 +854,7 @@
                                     {error.suggestion && <p className="mt-2 text-sm"><strong>Sugestão:</strong> {error.suggestion}</p>}
                                 </div>
                             )}
-                            {results && (
+                            {results && mode === 'compare' && (
                                 <div>
                                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
                                         <SummaryCard value={results.socData.length} label="Funcionários no SOC" color="blue" theme={theme} onClick={() => handleDetailToggle('socEmployees')} isActive={activeDetail === 'socEmployees'} />
@@ -776,9 +881,10 @@
                         </div>
                     </main>
                     <footer className={`text-center text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mt-8 py-4`}>
-                        <p>Versão 3.9 (React) | Em caso de erro, reportar para robsonmorais@produtiva.srv.br</p>
+                        <p>Versão 4.0 (React) | Em caso de erro, reportar para robsonmorais@produtiva.srv.br</p>
                     </footer>
                     <ChatModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} theme={theme} />
+                    <UpdateNotesModal isOpen={isUpdateModalOpen} onClose={handleCloseUpdateModal} theme={theme} />
                 </div>
             );
         }
