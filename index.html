@@ -204,10 +204,13 @@
                 
                 try {
                     const payload = { contents: chatHistory };
-                    // IMPORTANTE: Cole sua chave de API do Google AI Studio aqui
-                    const apiKey = "AIzaSyDziD1t4pbtPtTMm2CgoGacvVYyqcvTNnY"; // <--- CHAVE INSERIDA
+                    const apiKey = ""; // A CHAVE FOI REMOVIDA POR SEGURANÇA
                     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
                     
+                    if (!apiKey) {
+                        throw new Error("Chave de API não configurada.");
+                    }
+
                     const response = await fetch(apiUrl, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -228,7 +231,7 @@
                     }
                 } catch (error) {
                     console.error("Erro ao chamar a API Gemini:", error);
-                    setMessages(prev => [...prev, { role: 'assistant', text: 'Desculpe, não consegui processar sua pergunta. Verifique se a chave de API foi inserida corretamente no código.' }]);
+                    setMessages(prev => [...prev, { role: 'assistant', text: 'Desculpe, a função de ajuda está temporariamente indisponível. A chave de API precisa ser configurada.' }]);
                 } finally {
                     setIsLoading(false);
                 }
@@ -428,7 +431,7 @@
                     const validSocData = filterValidData(socData, 'Planilha SOC');
                     const validCompanyData = filterValidData(companyData, 'Planilha da Empresa');
                     
-                    const discrepancies = [], newEmployees = [], socMap = new Map();
+                    let discrepancies = [], newEmployees = [], socMap = new Map();
                     
                     // Verificação de duplicados no SOC
                     const socDuplicates = new Map();
@@ -448,6 +451,7 @@
                                     cpf: formatCpf(cpf),
                                     name: group[0].nome,
                                     isInternal: true,
+                                    type: 'internalStatusConflict',
                                     details: group.map(emp => ({
                                         codFuncionario: emp.codFuncionario,
                                         situacao: normalizeValue(emp.situacao) || 'Não informada'
@@ -490,6 +494,7 @@
                                     name: companyRow.nome || `Funcionário com CPF ${normalizeValue(companyRow.cpf)}`,
                                     matricula: normalizeValue(companyRow.matricula) || 'Não informada',
                                     isInternal: false,
+                                    type: 'fieldMismatch',
                                     details: employeeDiscrepancies
                                 });
                             }
@@ -498,6 +503,34 @@
                             newEmployees.push(companyRow);
                         }
                     });
+                    
+                    // Lógica de verificação de mistura de dados
+                    const allData = [...validSocData, ...validCompanyData];
+                    const matriculaMap = new Map();
+                    const nomeMap = new Map();
+
+                    allData.forEach(emp => {
+                        const matricula = normalizeValue(emp.matricula);
+                        const cpf = normalizeCpf(emp.cpf);
+                        const nome = normalizeName(emp.nome);
+
+                        if(matricula) {
+                            if (matriculaMap.has(matricula) && matriculaMap.get(matricula).cpf !== cpf) {
+                                discrepancies.push({ name: `Matrícula ${matricula} duplicada`, isInternal: true, type: 'mixedData', details: [{ field: 'CPF no SOC', value: matriculaMap.get(matricula).cpf }, { field: 'CPF na Empresa', value: cpf }] });
+                            } else if (!matriculaMap.has(matricula)) {
+                                matriculaMap.set(matricula, { cpf, nome: emp.nome });
+                            }
+                        }
+                        
+                        if(nome) {
+                            if (nomeMap.has(nome) && nomeMap.get(nome) !== cpf) {
+                                discrepancies.push({ name: `Nome '${emp.nome}' duplicado`, isInternal: true, type: 'mixedData', details: [{ field: 'CPF Anterior', value: nomeMap.get(nome) }, { field: 'CPF Atual', value: cpf }] });
+                            } else if (!nomeMap.has(nome)) {
+                                nomeMap.set(nome, cpf);
+                            }
+                        }
+                    });
+
 
                     const removedEmployees = Array.from(socMap.values()).map(emp => ({
                         ...emp,
@@ -625,14 +658,19 @@
                                 <div key={i} className={`${theme === 'dark' ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'} border rounded-lg p-4`}>
                                     <p className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{item.name}</p>
                                     <div className={`flex flex-wrap gap-x-4 text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mb-2`}><span><strong>CPF:</strong> {formatCpf(item.cpf)}</span>{ !item.isInternal && <span><strong>Matrícula:</strong> {item.matricula}</span>}</div>
-                                    {item.isInternal ? (
+                                    {item.type === 'internalStatusConflict' ? (
                                         <table className="w-full text-xs text-left mt-2 table-fixed">
                                             <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-100 text-gray-700'}`}><tr><th className="px-3 py-1 w-1/2">Cod Funcionário</th><th className="px-3 py-1 w-1/2">Situação no SOC</th></tr></thead>
                                             <tbody>{item.details.map((d, j) => <tr key={j} className={`border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} last:border-b-0`}><td className={`px-3 py-1 ${theme === 'dark' ? 'bg-red-900/40 text-red-300' : 'bg-red-50 text-red-700'}`}>{d.codFuncionario}</td><td className={`px-3 py-1 ${theme === 'dark' ? 'bg-red-900/40 text-red-300' : 'bg-red-50 text-red-700'}`}>{d.situacao}</td></tr>)}</tbody>
                                         </table>
+                                    ) : item.type === 'mixedData' ? (
+                                        <table className="w-full text-xs text-left mt-2 table-fixed">
+                                             <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-100 text-gray-700'}`}><tr><th className="px-3 py-1 w-1/2">Dado</th><th className="px-3 py-1 w-1/2">Valor Encontrado</th></tr></thead>
+                                             <tbody>{item.details.map((d, j) => <tr key={j} className={`border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} last:border-b-0`}><td className="px-3 py-1 font-medium">{d.field}</td><td className={`px-3 py-1 ${theme === 'dark' ? 'bg-red-900/40 text-red-300' : 'bg-red-50 text-red-700'}`}>{d.value}</td></tr>)}</tbody>
+                                        </table>
                                     ) : (
                                         <table className="w-full text-xs text-left mt-2 table-fixed">
-                                            <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-100 text-gray-700'}`}><tr><th className="px-3 py-1 w-[30%]">Campo</th><th className="px-3 py-1 w-[35%]">Valor no SOC</th><th className="px-3 py-1 w-[35%]">Valor na Empresa</th></tr></thead>
+                                            <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-100 text-gray-700'}`}><tr><th className="px-3 py-1 w-[30%]">Campo</th><th className="px-3 py-1 w-[35%]">Informação no SOC</th><th className="px-3 py-1 w-[35%]">Informação na Planilha da Empresa</th></tr></thead>
                                             <tbody>{item.details.map((d, j) => <tr key={j} className={`border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} last:border-b-0`}><td className="px-3 py-1 font-medium">{d.field}</td><td className={`px-3 py-1 ${theme === 'dark' ? 'bg-red-900/40 text-red-300' : 'bg-red-50 text-red-700'}`}>{d.socValue}</td><td className={`px-3 py-1 ${theme === 'dark' ? 'bg-red-900/40 text-red-300' : 'bg-red-50 text-red-700'}`}>{d.companyValue}</td></tr>)}</tbody>
                                         </table>
                                     )}
@@ -641,12 +679,7 @@
                         </div>
                     ),
                     newEmployees: (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm text-left">
-                                <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-50 text-gray-700'} text-xs uppercase`}><tr><th className="px-4 py-2">Nome</th><th className="px-4 py-2">CPF</th><th className="px-4 py-2">Matrícula</th></tr></thead>
-                                <tbody>{results.newEmployees.map((item, i) => <tr key={i} className={`border-b ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'}`}><td className="px-4 py-2">{item.nome || 'Não consta'}</td><td className="px-4 py-2 font-mono whitespace-nowrap">{formatCpf(item.cpf) || 'Não consta'}</td><td className="px-4 py-2">{normalizeValue(item.matricula) || 'Não consta'}</td></tr>)}</tbody>
-                            </table>
-                        </div>
+                        <EmployeeList employees={results.newEmployees} theme={theme} />
                     ),
                     removedEmployees: (
                          <div className="space-y-2">
@@ -742,7 +775,7 @@
                         </div>
                     </main>
                     <footer className={`text-center text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mt-8 py-4`}>
-                        <p>Versão 3.7 (React) | Em caso de erro, reportar para robsonmorais@produtiva.srv.br</p>
+                        <p>Versão 3.9 (React) | Em caso de erro, reportar para robsonmorais@produtiva.srv.br</p>
                     </footer>
                     <ChatModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} theme={theme} />
                 </div>
