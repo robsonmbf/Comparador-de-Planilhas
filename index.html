@@ -41,7 +41,7 @@
     <script type="text/babel">
         const { useState, useCallback, useEffect, useRef } = React;
 
-        const APP_VERSION = "4.0";
+        const APP_VERSION = "4.2";
 
         // --- Ícones em SVG ---
         const ThemeToggleIcon = ({ theme }) => (
@@ -71,7 +71,7 @@
         const Notice = ({ theme }) => (
             <div className={`${theme === 'dark' ? 'bg-gray-900 border-blue-500' : 'bg-blue-50 border-blue-400'} border-l-4 p-4 rounded-lg mb-8`} role="alert">
                 <p className="font-bold text-red-500 blinking-text">Atenção!</p>
-                <p className={theme === 'dark' ? 'text-gray-200' : 'text-blue-700'}>O sistema busca por nomes de coluna como <strong>CPF</strong>, <strong>Nome</strong>, <strong>Data de Nascimento</strong>, <strong>Data de Admissão</strong> e <strong>Matrícula</strong>.</p>
+                <p className={theme === 'dark' ? 'text-gray-200' : 'text-blue-700'}>O sistema busca por nomes de coluna como <strong>CPF</strong>, <strong>Nome</strong>, <strong>Data de Nascimento</strong>, <strong>Data de Admissão</strong>, <strong>Matrícula</strong>, <strong>Cargo</strong> e <strong>Setor</strong>.</p>
             </div>
         );
 
@@ -118,7 +118,18 @@
             dataDemissao: ['Data de Demissão', 'Dt.Demissão', 'DATA DEMISSAO'],
             situacao: ['Situação'],
             matricula: ['Matrícula', 'MATRICULA e-SOCIAL DO FUNCIONÁRIO', 'MATRICULA'],
-            codFuncionario: ['Cod Funcionário', 'Cód. Funcionário', 'Código do Funcionário']
+            codFuncionario: ['Cod Funcionário', 'Cód. Funcionário', 'Código do Funcionário'],
+            nomeCargo: ['Cargo', 'Nome Cargo', 'Função'],
+            nomeSetor: ['Setor', 'Nome Setor', 'Departamento']
+        };
+
+        const abbreviations = {
+            'adm': 'Administrativo',
+            'aux': 'Auxiliar',
+            'op': 'Operacional',
+            'tec': 'Técnico',
+            'serv': 'Serviços',
+            'ger': 'Gerais',
         };
 
         const findColumnValue = (row, possibleNames) => {
@@ -168,12 +179,42 @@
             return stringValue;
         };
 
+        const formatTitleCase = (str) => {
+            if (!str || typeof str !== 'string') return '';
+            const exceptions = ['da', 'de', 'do', 'dos', 'das', 'em'];
+            let formattedStr = str.toLowerCase().replace(/\s+/g, ' ').trim(); // Remove espaços extras
+            
+            // Expande abreviações
+            formattedStr = formattedStr.split(' ').map(word => abbreviations[word] || word).join(' ');
+
+            // Remove palavras duplicadas
+            formattedStr = [...new Set(formattedStr.split(' '))].join(' ');
+
+            return formattedStr
+                .split(' ')
+                .map(word => exceptions.includes(word) ? word : word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ');
+        };
+
         const getCpfInvalidityReason = (originalCpf) => {
             const normalized = normalizeCpf(originalCpf);
             if (!normalized) return "CPF em branco";
             if (normalized.length !== 11) return `Contém ${normalized.length} dígitos (esperado 11)`;
             return null;
         };
+
+        const standardizeData = (data) => data.map(row => ({
+            cpf: findColumnValue(row, columnMappings.cpf),
+            nome: findColumnValue(row, columnMappings.nome),
+            dataNascimento: findColumnValue(row, columnMappings.dataNascimento),
+            dataAdmissao: findColumnValue(row, columnMappings.dataAdmissao),
+            dataDemissao: findColumnValue(row, columnMappings.dataDemissao),
+            situacao: findColumnValue(row, columnMappings.situacao),
+            matricula: findColumnValue(row, columnMappings.matricula),
+            codFuncionario: findColumnValue(row, columnMappings.codFuncionario),
+            nomeCargo: findColumnValue(row, columnMappings.nomeCargo),
+            nomeSetor: findColumnValue(row, columnMappings.nomeSetor),
+        }));
 
         // --- Componente do Chat de IA ---
         const ChatModal = ({ isOpen, onClose, theme }) => {
@@ -284,6 +325,25 @@
 
         // --- Componente de Notas de Atualização ---
         const UpdateNotesModal = ({ isOpen, onClose, theme }) => {
+             const updateHistory = [
+                {
+                    version: "4.1",
+                    notes: [
+                        { type: 'feature', text: 'Modo "Gerar Modelo SOC": Carregue a planilha da empresa para gerar um "Modelo 1" pronto para importação.' },
+                        { type: 'improvement', text: 'Detecção de Dados Misturados: Identifica CPFs/Matrículas e Nomes/CPFs conflitantes.' },
+                        { type: 'improvement', text: 'Layout de "Novos Funcionários" agora mostra a lista detalhada completa.' },
+                         { type: 'improvement', text: 'Nomenclatura dos cabeçalhos de divergência atualizada para maior clareza.' },
+                    ]
+                },
+                {
+                    version: "4.0",
+                    notes: [
+                        { type: 'feature', text: 'Adicionado histórico de atualizações nesta janela.' },
+                        { type: 'improvement', text: 'Ajuste no layout para se adaptar ao conteúdo e melhorias na barra de rolagem das tabelas.' },
+                    ]
+                }
+            ];
+
             if (!isOpen) return null;
 
             return (
@@ -293,17 +353,31 @@
                             <h3 className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Novidades da Versão {APP_VERSION}</h3>
                             <button onClick={onClose} className={`${theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-800'}`}>&times;</button>
                         </div>
-                        <div className="p-6 space-y-4 text-sm">
-                            <p className="font-semibold text-blue-400">Nova Funcionalidade:</p>
-                            <ul className="list-disc list-inside space-y-1">
-                                <li>**Modo "Gerar Modelo SOC":** Agora você pode carregar apenas a planilha da empresa para gerar e baixar um "Modelo 1" pronto para importação.</li>
-                            </ul>
-                            <p className="font-semibold text-green-400">Melhorias:</p>
-                             <ul className="list-disc list-inside space-y-1">
-                                <li>**Detecção de Dados Misturados:** O sistema agora identifica CPFs associados a matrículas diferentes e nomes idênticos com CPFs diferentes entre as planilhas.</li>
-                                <li>**Layout de "Novos Funcionários":** A visualização agora mostra a lista detalhada completa.</li>
-                                <li>**Nomenclatura:** Os cabeçalhos de divergência foram atualizados para maior clareza.</li>
-                            </ul>
+                        <div className="p-6 space-y-4 text-sm max-h-[70vh] overflow-y-auto">
+                             <div>
+                                <p className="font-semibold text-green-400">Melhorias nesta versão:</p>
+                                <ul className="list-disc list-inside space-y-1 mt-2">
+                                    <li>Otimização do layout para se adaptar ao conteúdo, com barra de rolagem principal.</li>
+                                    <li>Correção na quebra de linha dos CPFs nas tabelas.</li>
+                                </ul>
+                            </div>
+                            <hr className={theme === 'dark' ? 'border-gray-600' : 'border-gray-300'} />
+                            <div>
+                                <h4 className={`font-bold mb-2 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>Histórico de Atualizações</h4>
+                                {updateHistory.map(update => (
+                                    <div key={update.version} className="mb-4">
+                                        <p className={`font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Versão {update.version}</p>
+                                        <ul className="list-disc list-inside space-y-1 mt-1 pl-2">
+                                            {update.notes.map((note, index) => (
+                                                <li key={index}>
+                                                    <span className={`font-medium ${note.type === 'feature' ? 'text-blue-400' : 'text-green-400'}`}>{note.type === 'feature' ? 'Funcionalidade: ' : 'Melhoria: '}</span>
+                                                    {note.text}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                         <div className={`p-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} text-right`}>
                              <button onClick={onClose} className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
@@ -376,7 +450,7 @@
                                 if (dataAsArray.length === 0) continue;
 
                                 let headerIndex = -1;
-                                const keywords = ['cpf', 'nome', 'nascimento', 'admissão', 'matrícula'];
+                                const keywords = ['cpf', 'nome', 'nascimento', 'admissão', 'matrícula', 'cargo', 'setor'];
                                 for (let i = 0; i < Math.min(dataAsArray.length, 10); i++) {
                                     const rowString = dataAsArray[i].join(' ').toLowerCase();
                                     if (keywords.filter(k => rowString.includes(k)).length >= 3) {
@@ -452,17 +526,6 @@
                     setOriginalSocData({ raw: socFileData.jsonData, headers: socFileData.headerRow, columnMap: socFileData.columnMap });
                     
                     const companyFileData = await readAndProcessSheet(companyFile);
-
-                    const standardizeData = (data) => data.map(row => ({
-                        cpf: findColumnValue(row, columnMappings.cpf),
-                        nome: findColumnValue(row, columnMappings.nome),
-                        dataNascimento: findColumnValue(row, columnMappings.dataNascimento),
-                        dataAdmissao: findColumnValue(row, columnMappings.dataAdmissao),
-                        dataDemissao: findColumnValue(row, columnMappings.dataDemissao),
-                        situacao: findColumnValue(row, columnMappings.situacao),
-                        matricula: findColumnValue(row, columnMappings.matricula),
-                        codFuncionario: findColumnValue(row, columnMappings.codFuncionario)
-                    }));
                     
                     const socData = standardizeData(socFileData.jsonData);
                     const companyData = standardizeData(companyFileData.jsonData);
@@ -619,6 +682,9 @@
                 if(document.getElementById('company-file')) {
                     document.getElementById('company-file').value = '';
                 }
+                 if(document.getElementById('company-file-generate')) {
+                    document.getElementById('company-file-generate').value = '';
+                }
             };
             
             const handleExport = () => {
@@ -679,19 +745,21 @@
                     const companyFileData = await readAndProcessSheet(companyFile);
                     const standardizedData = standardizeData(companyFileData.jsonData);
 
-                    const modelHeaders = ["Cod Funcionário", "Nome Funcionário", "CPF", "Data de Nascimento", "Data de Admissão", "Matrícula", "Situação"];
+                    const modelHeaders = ["Cod Funcionário", "Nome Funcionário", "CPF", "Data de Nascimento", "Data de Admissão", "Matrícula", "Situação", "Nome Setor", "Nome Cargo"];
 
                     const outputData = [
                         ['Modelo 1'],
                         modelHeaders,
-                        ...standardizedData.map(emp => [
-                            '', // Cod Funcionário
+                        ...standardizedData.map((emp, index) => [
+                            index + 1, // Cod Funcionário
                             emp.nome || '',
                             emp.cpf || '',
                             emp.dataNascimento || '',
                             emp.dataAdmissao || '',
                             emp.matricula || '',
-                            'S' // Situação
+                            'S', // Situação
+                            formatTitleCase(emp.nomeSetor),
+                            formatTitleCase(emp.nomeCargo)
                         ])
                     ];
 
@@ -881,7 +949,7 @@
                         </div>
                     </main>
                     <footer className={`text-center text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mt-8 py-4`}>
-                        <p>Versão 4.0 (React) | Em caso de erro, reportar para robsonmorais@produtiva.srv.br</p>
+                        <p>Versão 4.1 (React) | Em caso de erro, reportar para robsonmorais@produtiva.srv.br</p>
                     </footer>
                     <ChatModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} theme={theme} />
                     <UpdateNotesModal isOpen={isUpdateModalOpen} onClose={handleCloseUpdateModal} theme={theme} />
