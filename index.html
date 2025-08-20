@@ -39,7 +39,7 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useCallback, useEffect } = React;
+        const { useState, useCallback, useEffect, useRef } = React;
 
         // --- Ícones em SVG ---
         const ThemeToggleIcon = ({ theme }) => (
@@ -54,6 +54,9 @@
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
         );
 
+        const SendIcon = () => (
+             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+        );
 
         // --- Componentes da UI ---
         const Header = ({ theme }) => (
@@ -103,7 +106,7 @@
                 <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{label}</p>
             </button>
         );
-
+        
         // --- Mapeamento e Funções Utilitárias ---
         const columnMappings = {
             cpf: ['CPF'],
@@ -170,10 +173,114 @@
             return null;
         };
 
+        // --- Componente do Chat de IA ---
+        const ChatModal = ({ isOpen, onClose, theme }) => {
+            const [messages, setMessages] = useState([
+                { role: 'assistant', text: 'Olá! Como posso ajudar você a usar o Verificador de Planilhas?' }
+            ]);
+            const [input, setInput] = useState('');
+            const [isLoading, setIsLoading] = useState(false);
+            const messagesEndRef = useRef(null);
+
+            const scrollToBottom = () => {
+                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+            };
+
+            useEffect(scrollToBottom, [messages]);
+
+            const handleSendMessage = async (e) => {
+                e.preventDefault();
+                if (!input.trim() || isLoading) return;
+
+                const userMessage = { role: 'user', text: input };
+                setMessages(prev => [...prev, userMessage]);
+                setInput('');
+                setIsLoading(true);
+
+                const context = "Você é um assistente prestativo para um aplicativo chamado 'Verificador de Planilhas'. Sua função é ajudar os usuários a entender como usar a ferramenta. A ferramenta compara duas planilhas de funcionários (uma do SOC, outra da empresa) para encontrar divergências, novos funcionários, funcionários removidos e CPFs inválidos. Responda de forma concisa e amigável.";
+                const prompt = `${context}\n\nO usuário pergunta: ${input}`;
+                
+                let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+                
+                try {
+                    const payload = { contents: chatHistory };
+                    const apiKey = "";
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+                    
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`API error: ${response.statusText}`);
+                    }
+
+                    const result = await response.json();
+                    
+                    if (result.candidates && result.candidates.length > 0) {
+                        const text = result.candidates[0].content.parts[0].text;
+                        setMessages(prev => [...prev, { role: 'assistant', text }]);
+                    } else {
+                        throw new Error("Resposta da API inválida.");
+                    }
+                } catch (error) {
+                    console.error("Erro ao chamar a API Gemini:", error);
+                    setMessages(prev => [...prev, { role: 'assistant', text: 'Desculpe, não consegui processar sua pergunta. Tente novamente.' }]);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+
+            if (!isOpen) return null;
+
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end justify-end p-4 z-50">
+                    <div className={`w-full max-w-md h-2/3 flex flex-col rounded-lg shadow-2xl ${theme === 'dark' ? 'bg-gray-800 border border-gray-700' : 'bg-white'}`}>
+                        <div className={`p-4 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} flex justify-between items-center`}>
+                            <h3 className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Assistente de Ajuda</h3>
+                            <button onClick={onClose} className={`${theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-800'}`}>&times;</button>
+                        </div>
+                        <div className="flex-1 p-4 overflow-y-auto">
+                            {messages.map((msg, index) => (
+                                <div key={index} className={`flex mb-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                    <div className={`max-w-xs md:max-w-md rounded-lg px-4 py-2 ${msg.role === 'user' ? 'bg-blue-600 text-white' : (theme === 'dark' ? 'bg-gray-700 text-gray-200' : 'bg-gray-200 text-gray-800')}`}>
+                                        {msg.text}
+                                    </div>
+                                </div>
+                            ))}
+                             {isLoading && (
+                                <div className="flex justify-start">
+                                    <div className={`rounded-lg px-4 py-2 ${theme === 'dark' ? 'bg-gray-700 text-gray-200' : 'bg-gray-200 text-gray-800'}`}>
+                                        <span className="animate-pulse">Digitando...</span>
+                                    </div>
+                                </div>
+                            )}
+                            <div ref={messagesEndRef} />
+                        </div>
+                        <form onSubmit={handleSendMessage} className={`p-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} flex items-center`}>
+                            <input
+                                type="text"
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                placeholder="Pergunte algo..."
+                                className={`flex-1 p-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                            />
+                            <button type="submit" className="ml-2 p-2 rounded-full bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-500">
+                                <SendIcon />
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            );
+        };
+
         // --- Componente Principal ---
         function App() {
             const [theme, setTheme] = useState('dark');
             const [activeDetail, setActiveDetail] = useState(null);
+            const [isChatOpen, setIsChatOpen] = useState(false);
             const [socFile, setSocFile] = useState(null);
             const [companyFile, setCompanyFile] = useState(null);
             const [socFileInfo, setSocFileInfo] = useState(null);
@@ -573,6 +680,9 @@
             return (
                 <div className="min-h-screen flex flex-col items-center p-4">
                     <main className={`relative ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'} rounded-2xl shadow-xl p-6 md:p-10 w-full max-w-6xl border`}>
+                        <button onClick={() => setIsChatOpen(true)} className={`absolute top-4 left-4 p-2 rounded-lg text-sm font-semibold ${theme === 'dark' ? 'bg-gray-600 text-gray-200 hover:bg-gray-500' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'} transition-colors`}>
+                            Ajuda IA
+                        </button>
                         <button onClick={toggleTheme} className="absolute top-4 right-4 p-2 rounded-full bg-gray-500/20 hover:bg-gray-500/40 transition-colors">
                             <ThemeToggleIcon theme={theme} />
                         </button>
@@ -631,8 +741,9 @@
                         </div>
                     </main>
                     <footer className={`text-center text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mt-8 py-4`}>
-                        <p>Versão 3.4 (React) | Em caso de erro, reportar para robsonmorais@produtiva.srv.br</p>
+                        <p>Versão 3.6 (React) | Em caso de erro, reportar para robsonmorais@produtiva.srv.br</p>
                     </footer>
+                    <ChatModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} theme={theme} />
                 </div>
             );
         }
