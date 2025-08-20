@@ -62,7 +62,7 @@
         const Header = ({ theme }) => (
             <div className="text-center mb-8">
                 <h1 className={`text-3xl md:text-4xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Verificador de Planilhas</h1>
-                <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} mt-2`}>Compare dados de funcionários entre a planilha do SOC e a da empresa.</p>
+                <p className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} mt-2`}>Compare ou gere planilhas de funcionários.</p>
             </div>
         );
 
@@ -283,6 +283,7 @@
         // --- Componente Principal ---
         function App() {
             const [theme, setTheme] = useState('dark');
+            const [mode, setMode] = useState('compare');
             const [activeDetail, setActiveDetail] = useState(null);
             const [isChatOpen, setIsChatOpen] = useState(false);
             const [socFile, setSocFile] = useState(null);
