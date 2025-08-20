@@ -19,6 +19,20 @@
             font-family: 'Inter', sans-serif; 
             transition: background-color 0.3s, color 0.3s;
         }
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+        .blinking-text {
+            animation: blink 1.5s step-start infinite;
+        }
+        .detail-view {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-in-out;
+        }
+        .detail-view.open {
+            max-height: 10000px; /* Um valor alto para permitir a expansão */
+        }
     </style>
 </head>
 <body>
@@ -28,10 +42,6 @@
         const { useState, useCallback, useEffect } = React;
 
         // --- Ícones em SVG ---
-        const ArrowDownIcon = ({ isOpen, theme }) => (
-            <svg className={`w-5 h-5 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} transition-transform duration-300 ${isOpen ? 'transform rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-        );
-        
         const ThemeToggleIcon = ({ theme }) => (
             theme === 'dark' ? (
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-yellow-400"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
@@ -50,9 +60,9 @@
         );
 
         const Notice = ({ theme }) => (
-            <div className={`${theme === 'dark' ? 'bg-gray-900 border-blue-500 text-blue-200' : 'bg-blue-50 border-blue-400 text-blue-700'} border-l-4 p-4 rounded-lg mb-8`} role="alert">
-                <p className="font-bold">Atenção!</p>
-                <p>O sistema busca por nomes de coluna como <strong>CPF</strong>, <strong>Nome</strong>, <strong>Data de Nascimento</strong>, <strong>Data de Admissão</strong> e <strong>Matrícula</strong>.</p>
+            <div className={`${theme === 'dark' ? 'bg-gray-900 border-blue-500' : 'bg-blue-50 border-blue-400'} border-l-4 p-4 rounded-lg mb-8`} role="alert">
+                <p className="font-bold text-red-500 blinking-text">Atenção!</p>
+                <p className={theme === 'dark' ? 'text-gray-200' : 'text-blue-700'}>O sistema busca por nomes de coluna como <strong>CPF</strong>, <strong>Nome</strong>, <strong>Data de Nascimento</strong>, <strong>Data de Admissão</strong> e <strong>Matrícula</strong>.</p>
             </div>
         );
 
@@ -79,35 +89,16 @@
             </div>
         );
 
-        const SummaryCard = ({ value, label, color, theme }) => (
-            <div className={`${theme === 'dark' ? 'bg-gray-900/50 border-gray-700' : 'bg-white border-gray-200'} p-4 rounded-lg text-center border`}>
+        const SummaryCard = ({ value, label, color, theme, onClick, isActive }) => (
+            <button 
+                onClick={onClick}
+                disabled={value === 0}
+                className={`w-full p-4 rounded-lg text-center border transition-all duration-300 ${isActive ? `ring-2 ring-offset-2 ${theme === 'dark' ? 'ring-offset-gray-700' : 'ring-offset-white'} ring-${color}-500` : ''} ${value === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'} ${theme === 'dark' ? 'bg-gray-900/50 border-gray-700' : 'bg-white border-gray-200'}`}
+            >
                 <p className={`text-3xl font-bold text-${color}-${theme === 'dark' ? '400' : '600'}`}>{value}</p>
                 <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{label}</p>
-            </div>
+            </button>
         );
-
-        const AccordionItem = ({ title, children, count, theme }) => {
-            const [isOpen, setIsOpen] = useState(false);
-            if (count === 0) return null;
-
-            return (
-                <div className={`border ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'} rounded-lg`}>
-                    <button
-                        onClick={() => setIsOpen(!isOpen)}
-                        className={`w-full flex justify-between items-center p-4 ${theme === 'dark' ? 'bg-gray-600 hover:bg-gray-500' : 'bg-gray-50 hover:bg-gray-100'} focus:outline-none`}
-                    >
-                        <span className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{title} ({count})</span>
-                        <ArrowDownIcon isOpen={isOpen} theme={theme} />
-                    </button>
-                    <div
-                        className={`overflow-hidden transition-all duration-300 ease-in-out ${theme === 'dark' ? 'bg-gray-700' : 'bg-white'}`}
-                        style={{ maxHeight: isOpen ? '10000px' : '0px' }}
-                    >
-                        <div className="p-1 md:p-4">{children}</div>
-                    </div>
-                </div>
-            );
-        };
 
         // --- Mapeamento e Funções Utilitárias ---
         const columnMappings = {
@@ -172,6 +163,7 @@
         // --- Componente Principal ---
         function App() {
             const [theme, setTheme] = useState('dark');
+            const [activeDetail, setActiveDetail] = useState(null);
             const [socFile, setSocFile] = useState(null);
             const [companyFile, setCompanyFile] = useState(null);
             const [socFileInfo, setSocFileInfo] = useState(null);
@@ -188,6 +180,10 @@
             
             const toggleTheme = () => {
                 setTheme(prevTheme => prevTheme === 'dark' ? 'light' : 'dark');
+            };
+
+            const handleDetailToggle = (detail) => {
+                setActiveDetail(prevDetail => prevDetail === detail ? null : detail);
             };
 
             const readAndProcessSheet = (file) => {
@@ -270,6 +266,7 @@
             };
             
             const handleCompare = useCallback(async () => {
+                setActiveDetail(null);
                 if (!socFile || !companyFile) {
                     setError({ title: 'Arquivos Faltando', message: 'Por favor, selecione os dois arquivos de planilha para continuar.' });
                     setResults(null);
@@ -376,6 +373,7 @@
                 setError(null);
                 setIsLoading(false);
                 setOriginalSocData(null);
+                setActiveDetail(null);
                 document.getElementById('soc-file').value = '';
                 document.getElementById('company-file').value = '';
             };
@@ -426,6 +424,62 @@
                 XLSX.utils.book_append_sheet(workbook, worksheet, "Funcionários Atualizados");
                 XLSX.writeFile(workbook, "Planilha_SOC_Atualizada.xlsx");
             };
+            
+            const renderDetailView = () => {
+                if (!results) return null;
+
+                const detailContent = {
+                    discrepancies: (
+                        <div className="space-y-4">
+                            {results.discrepancies.map((item, i) => (
+                                <div key={i} className={`${theme === 'dark' ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'} border rounded-lg p-4`}>
+                                    <p className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{item.name}</p>
+                                    <div className={`flex flex-wrap gap-x-4 text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mb-2`}><span><strong>CPF:</strong> {formatCpf(item.cpf)}</span><span><strong>Matrícula:</strong> {item.matricula}</span></div>
+                                    <table className="w-full text-xs text-left mt-2">
+                                        <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-100 text-gray-700'}`}><tr><th className="px-3 py-1">Campo</th><th className="px-3 py-1">Valor na SOC</th><th className="px-3 py-1">Valor na Empresa</th></tr></thead>
+                                        <tbody>{item.details.map((d, j) => <tr key={j} className={`border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} last:border-b-0`}><td className="px-3 py-1 font-medium">{d.field}</td><td className={`px-3 py-1 ${theme === 'dark' ? 'bg-red-900/40 text-red-300' : 'bg-red-50 text-red-700'}`}>{d.socValue}</td><td className={`px-3 py-1 ${theme === 'dark' ? 'bg-red-900/40 text-red-300' : 'bg-red-50 text-red-700'}`}>{d.companyValue}</td></tr>)}</tbody>
+                                    </table>
+                                </div>
+                            ))}
+                        </div>
+                    ),
+                    newEmployees: (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm text-left">
+                                <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-50 text-gray-700'} text-xs uppercase`}><tr><th className="px-4 py-2">Nome</th><th className="px-4 py-2">CPF</th><th className="px-4 py-2">Matrícula</th></tr></thead>
+                                <tbody>{results.newEmployees.map((item, i) => <tr key={i} className={`border-b ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'}`}><td className="px-4 py-2">{item.nome || 'Não informado'}</td><td className="px-4 py-2 font-mono">{formatCpf(item.cpf)}</td><td className="px-4 py-2">{normalizeValue(item.matricula)}</td></tr>)}</tbody>
+                            </table>
+                        </div>
+                    ),
+                    removedEmployees: (
+                         <div className="space-y-2">
+                            {results.removedEmployees.map((item, i) => (
+                                <div key={i} className={`p-4 border ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'} rounded-lg`}>
+                                    <p className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{item.nome || 'Não informado'}</p>
+                                    <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} font-mono`}>{formatCpf(item.cpf)}</p>
+                                    <p className={`text-sm ${theme === 'dark' ? 'text-red-400' : 'text-red-600'} mt-1`}>{item.status}</p>
+                                </div>
+                            ))}
+                        </div>
+                    ),
+                    invalidCpfs: (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm text-left">
+                                <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-50 text-gray-700'} text-xs uppercase`}><tr><th className="px-4 py-2">Nome</th><th className="px-4 py-2">CPF Informado</th><th className="px-4 py-2">Motivo</th><th className="px-4 py-2">Origem</th></tr></thead>
+                                <tbody>{results.invalidCpfs.map((item, i) => <tr key={i} className={`border-b ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'}`}><td className="px-4 py-2">{item.name}</td><td className={`px-4 py-2 font-mono ${theme === 'dark' ? 'text-red-400' : 'text-red-600'}`}>{formatCpf(item.cpf)}</td><td className="px-4 py-2">{item.reason}</td><td className="px-4 py-2">{item.source}</td></tr>)}</tbody>
+                            </table>
+                        </div>
+                    )
+                };
+
+                return (
+                    <div className={`detail-view ${activeDetail ? 'open' : ''}`}>
+                        <div className="p-4 mt-4 border-t border-gray-500/50">
+                            {detailContent[activeDetail]}
+                        </div>
+                    </div>
+                );
+            };
 
             return (
                 <div className="min-h-screen flex flex-col items-center justify-center p-4">
@@ -464,60 +518,13 @@
                             {results && (
                                 <div>
                                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-                                        <SummaryCard value={results.socCount} label="Funcionários na SOC" color="blue" theme={theme} />
-                                        <SummaryCard value={results.companyCount} label="Funcionários na Empresa" color="green" theme={theme} />
-                                        <SummaryCard value={results.discrepancies.length} label="Divergências" color="red" theme={theme} />
-                                        <SummaryCard value={results.newEmployees.length} label="Novos Funcionários" color="green" theme={theme} />
-                                        <SummaryCard value={results.removedEmployees.length} label="Funcionários Removidos" color="purple" theme={theme} />
-                                        <SummaryCard value={results.invalidCpfs.length} label="CPFs Inválidos" color="yellow" theme={theme} />
+                                        <SummaryCard value={results.discrepancies.length} label="Divergências" color="red" theme={theme} onClick={() => handleDetailToggle('discrepancies')} isActive={activeDetail === 'discrepancies'} />
+                                        <SummaryCard value={results.newEmployees.length} label="Novos Funcionários" color="green" theme={theme} onClick={() => handleDetailToggle('newEmployees')} isActive={activeDetail === 'newEmployees'} />
+                                        <SummaryCard value={results.removedEmployees.length} label="Funcionários Removidos" color="purple" theme={theme} onClick={() => handleDetailToggle('removedEmployees')} isActive={activeDetail === 'removedEmployees'} />
+                                        <SummaryCard value={results.invalidCpfs.length} label="CPFs Inválidos" color="yellow" theme={theme} onClick={() => handleDetailToggle('invalidCpfs')} isActive={activeDetail === 'invalidCpfs'} />
                                     </div>
-
-                                    <div className="space-y-2">
-                                        <AccordionItem title="CPFs Inválidos" count={results.invalidCpfs.length} theme={theme}>
-                                            <div className="overflow-x-auto">
-                                                <table className="w-full text-sm text-left">
-                                                    <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-50 text-gray-700'} text-xs uppercase`}><tr><th className="px-4 py-2">Nome</th><th className="px-4 py-2">CPF Informado</th><th className="px-4 py-2">Motivo</th><th className="px-4 py-2">Origem</th></tr></thead>
-                                                    <tbody>{results.invalidCpfs.map((item, i) => <tr key={i} className={`border-b ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'}`}><td className="px-4 py-2">{item.name}</td><td className={`px-4 py-2 font-mono ${theme === 'dark' ? 'text-red-400' : 'text-red-600'}`}>{formatCpf(item.cpf)}</td><td className="px-4 py-2">{item.reason}</td><td className="px-4 py-2">{item.source}</td></tr>)}</tbody>
-                                                </table>
-                                            </div>
-                                        </AccordionItem>
-                                        
-                                        <AccordionItem title="Divergências Encontradas" count={results.discrepancies.length} theme={theme}>
-                                            <div className="space-y-4">
-                                                {results.discrepancies.map((item, i) => (
-                                                    <div key={i} className={`${theme === 'dark' ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'} border rounded-lg p-4`}>
-                                                        <p className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{item.name}</p>
-                                                        <div className={`flex flex-wrap gap-x-4 text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mb-2`}><span><strong>CPF:</strong> {formatCpf(item.cpf)}</span><span><strong>Matrícula:</strong> {item.matricula}</span></div>
-                                                        <table className="w-full text-xs text-left mt-2">
-                                                            <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-100 text-gray-700'}`}><tr><th className="px-3 py-1">Campo</th><th className="px-3 py-1">Valor na SOC</th><th className="px-3 py-1">Valor na Empresa</th></tr></thead>
-                                                            <tbody>{item.details.map((d, j) => <tr key={j} className={`border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} last:border-b-0`}><td className="px-3 py-1 font-medium">{d.field}</td><td className={`px-3 py-1 ${theme === 'dark' ? 'bg-red-900/40 text-red-300' : 'bg-red-50 text-red-700'}`}>{d.socValue}</td><td className={`px-3 py-1 ${theme === 'dark' ? 'bg-red-900/40 text-red-300' : 'bg-red-50 text-red-700'}`}>{d.companyValue}</td></tr>)}</tbody>
-                                                        </table>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </AccordionItem>
-
-                                        <AccordionItem title="Novos Funcionários" count={results.newEmployees.length} theme={theme}>
-                                            <div className="overflow-x-auto">
-                                                <table className="w-full text-sm text-left">
-                                                    <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-50 text-gray-700'} text-xs uppercase`}><tr><th className="px-4 py-2">Nome</th><th className="px-4 py-2">CPF</th><th className="px-4 py-2">Matrícula</th></tr></thead>
-                                                    <tbody>{results.newEmployees.map((item, i) => <tr key={i} className={`border-b ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'}`}><td className="px-4 py-2">{item.nome || 'Não informado'}</td><td className="px-4 py-2 font-mono">{formatCpf(item.cpf)}</td><td className="px-4 py-2">{normalizeValue(item.matricula)}</td></tr>)}</tbody>
-                                                </table>
-                                            </div>
-                                        </AccordionItem>
-
-                                        <AccordionItem title="Funcionários Removidos/Desligados" count={results.removedEmployees.length} theme={theme}>
-                                            <div className="space-y-2">
-                                                {results.removedEmployees.map((item, i) => (
-                                                    <div key={i} className={`p-4 border ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'} rounded-lg`}>
-                                                        <p className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{item.nome || 'Não informado'}</p>
-                                                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} font-mono`}>{formatCpf(item.cpf)}</p>
-                                                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-500' : 'text-gray-500'} mt-1`}>{item.status}</p>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </AccordionItem>
-                                    </div>
+                                    
+                                    {renderDetailView()}
 
                                     <div className="mt-8 text-center space-y-2 md:space-y-0 md:space-x-4">
                                         <button onClick={handleExport} className="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition-colors duration-300 w-full md:w-auto">
@@ -532,7 +539,7 @@
                         </div>
                     </main>
                     <footer className={`text-center text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mt-8 py-4`}>
-                        <p>Versão 2.0 (React) | Em caso de erro, reportar para robsonmorais@produtiva.srv.br</p>
+                        <p>Versão 2.1 (React) | Em caso de erro, reportar para robsonmorais@produtiva.srv.br</p>
                     </footer>
                 </div>
             );
