@@ -477,7 +477,7 @@
             };
 
             const EmployeeList = ({ employees, theme }) => (
-                <div className="overflow-x-auto">
+                <div className="overflow-auto max-h-96">
                     <table className="w-full text-sm text-left">
                         <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-50 text-gray-700'} text-xs uppercase sticky top-0`}>
                             <tr>
@@ -494,7 +494,7 @@
                                 <tr key={i} className={`border-b ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'}`}>
                                     <td className="px-2 py-2 text-center">{i + 1}</td>
                                     <td className="px-4 py-2">{item.nome || 'Não consta'}</td>
-                                    <td className="px-4 py-2 font-mono">{formatCpf(item.cpf) || 'Não consta'}</td>
+                                    <td className="px-4 py-2 font-mono whitespace-nowrap">{formatCpf(item.cpf) || 'Não consta'}</td>
                                     <td className="px-4 py-2">{normalizeValue(item.dataNascimento) || 'Não consta'}</td>
                                     <td className="px-4 py-2">{normalizeValue(item.dataAdmissao) || 'Não consta'}</td>
                                     <td className="px-4 py-2">{normalizeValue(item.matricula) || 'Não consta'}</td>
@@ -536,7 +536,7 @@
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm text-left">
                                 <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-50 text-gray-700'} text-xs uppercase`}><tr><th className="px-4 py-2">Nome</th><th className="px-4 py-2">CPF</th><th className="px-4 py-2">Matrícula</th></tr></thead>
-                                <tbody>{results.newEmployees.map((item, i) => <tr key={i} className={`border-b ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'}`}><td className="px-4 py-2">{item.nome || 'Não consta'}</td><td className="px-4 py-2 font-mono">{formatCpf(item.cpf) || 'Não consta'}</td><td className="px-4 py-2">{normalizeValue(item.matricula) || 'Não consta'}</td></tr>)}</tbody>
+                                <tbody>{results.newEmployees.map((item, i) => <tr key={i} className={`border-b ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'}`}><td className="px-4 py-2">{item.nome || 'Não consta'}</td><td className="px-4 py-2 font-mono whitespace-nowrap">{formatCpf(item.cpf) || 'Não consta'}</td><td className="px-4 py-2">{normalizeValue(item.matricula) || 'Não consta'}</td></tr>)}</tbody>
                             </table>
                         </div>
                     ),
@@ -555,7 +555,7 @@
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm text-left">
                                 <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-50 text-gray-700'} text-xs uppercase`}><tr><th className="px-4 py-2">Nome</th><th className="px-4 py-2">CPF Informado</th><th className="px-4 py-2">Motivo</th><th className="px-4 py-2">Origem</th></tr></thead>
-                                <tbody>{results.invalidCpfs.map((item, i) => <tr key={i} className={`border-b ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'}`}><td className="px-4 py-2">{item.name}</td><td className={`px-4 py-2 font-mono ${theme === 'dark' ? 'text-red-400' : 'text-red-600'}`}>{formatCpf(item.cpf)}</td><td className="px-4 py-2">{item.reason}</td><td className="px-4 py-2">{item.source}</td></tr>)}</tbody>
+                                <tbody>{results.invalidCpfs.map((item, i) => <tr key={i} className={`border-b ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'}`}><td className="px-4 py-2">{item.name}</td><td className={`px-4 py-2 font-mono whitespace-nowrap ${theme === 'dark' ? 'text-red-400' : 'text-red-600'}`}>{formatCpf(item.cpf)}</td><td className="px-4 py-2">{item.reason}</td><td className="px-4 py-2">{item.source}</td></tr>)}</tbody>
                             </table>
                         </div>
                     )
@@ -631,7 +631,7 @@
                         </div>
                     </main>
                     <footer className={`text-center text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mt-8 py-4`}>
-                        <p>Versão 3.2 (React) | Em caso de erro, reportar para robsonmorais@produtiva.srv.br</p>
+                        <p>Versão 3.3 (React) | Em caso de erro, reportar para robsonmorais@produtiva.srv.br</p>
                     </footer>
                 </div>
             );
