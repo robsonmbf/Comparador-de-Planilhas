@@ -49,6 +49,10 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gray-600"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
             )
         );
+        
+        const TrashIcon = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+        );
 
 
         // --- Componentes da UI ---
@@ -92,19 +96,12 @@
         const SummaryCard = ({ value, label, color, theme, onClick, isActive }) => (
             <button 
                 onClick={onClick}
-                disabled={value === 0}
-                className={`w-full p-4 rounded-lg text-center border transition-all duration-300 ${isActive ? `ring-2 ring-offset-2 ${theme === 'dark' ? 'ring-offset-gray-700' : 'ring-offset-white'} ring-${color}-500` : ''} ${value === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'} ${theme === 'dark' ? 'bg-gray-900/50 border-gray-700' : 'bg-white border-gray-200'}`}
+                disabled={value === 0 && !onClick}
+                className={`w-full p-4 rounded-lg text-center border transition-all duration-300 ${isActive ? `ring-2 ring-offset-2 ${theme === 'dark' ? 'ring-offset-gray-700' : 'ring-offset-white'} ring-${color}-500` : ''} ${value === 0 && onClick ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'} ${theme === 'dark' ? 'bg-gray-900/50 border-gray-700' : 'bg-white border-gray-200'}`}
             >
                 <p className={`text-3xl font-bold text-${color}-${theme === 'dark' ? '400' : '600'}`}>{value}</p>
                 <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{label}</p>
             </button>
-        );
-        
-        const StaticSummaryCard = ({ value, label, color, theme }) => (
-            <div className={`w-full p-4 rounded-lg text-center border ${theme === 'dark' ? 'bg-gray-900/50 border-gray-700' : 'bg-white border-gray-200'}`}>
-                <p className={`text-3xl font-bold text-${color}-${theme === 'dark' ? '400' : '600'}`}>{value}</p>
-                <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{label}</p>
-            </div>
         );
 
         // --- Mapeamento e Funções Utilitárias ---
@@ -361,7 +358,14 @@
                             : 'Não consta na Planilha da Empresa'
                     }));
                     
-                    setResults({ discrepancies, newEmployees, invalidCpfs, removedEmployees, socCount: validSocData.length, companyCount: validCompanyData.length });
+                    setResults({ 
+                        discrepancies, 
+                        newEmployees, 
+                        invalidCpfs, 
+                        removedEmployees, 
+                        socData: validSocData, 
+                        companyData: validCompanyData 
+                    });
 
                 } catch (e) {
                     console.error("Erro na comparação:", e);
@@ -431,11 +435,40 @@
                 XLSX.utils.book_append_sheet(workbook, worksheet, "Funcionários Atualizados");
                 XLSX.writeFile(workbook, "Planilha_SOC_Atualizada.xlsx");
             };
+
+            const EmployeeList = ({ employees, theme }) => (
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                        <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-50 text-gray-700'} text-xs uppercase`}>
+                            <tr>
+                                <th className="px-4 py-2">Nome</th>
+                                <th className="px-4 py-2">CPF</th>
+                                <th className="px-4 py-2">Nascimento</th>
+                                <th className="px-4 py-2">Admissão</th>
+                                <th className="px-4 py-2">Matrícula</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {employees.map((item, i) => (
+                                <tr key={i} className={`border-b ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'}`}>
+                                    <td className="px-4 py-2">{item.nome || 'Não informado'}</td>
+                                    <td className="px-4 py-2 font-mono">{formatCpf(item.cpf)}</td>
+                                    <td className="px-4 py-2">{normalizeValue(item.dataNascimento)}</td>
+                                    <td className="px-4 py-2">{normalizeValue(item.dataAdmissao)}</td>
+                                    <td className="px-4 py-2">{normalizeValue(item.matricula)}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            );
             
             const renderDetailView = () => {
                 if (!results) return null;
 
                 const detailContent = {
+                    socEmployees: <EmployeeList employees={results.socData} theme={theme} />,
+                    companyEmployees: <EmployeeList employees={results.companyData} theme={theme} />,
                     discrepancies: (
                         <div className="space-y-4">
                             {results.discrepancies.map((item, i) => (
@@ -525,8 +558,8 @@
                             {results && (
                                 <div>
                                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-                                        <StaticSummaryCard value={results.socCount} label="Funcionários na SOC" color="blue" theme={theme} />
-                                        <StaticSummaryCard value={results.companyCount} label="Funcionários na Empresa" color="green" theme={theme} />
+                                        <SummaryCard value={results.socData.length} label="Funcionários na SOC" color="blue" theme={theme} onClick={() => handleDetailToggle('socEmployees')} isActive={activeDetail === 'socEmployees'} />
+                                        <SummaryCard value={results.companyData.length} label="Funcionários na Empresa" color="green" theme={theme} onClick={() => handleDetailToggle('companyEmployees')} isActive={activeDetail === 'companyEmployees'} />
                                         <SummaryCard value={results.discrepancies.length} label="Divergências" color="red" theme={theme} onClick={() => handleDetailToggle('discrepancies')} isActive={activeDetail === 'discrepancies'} />
                                         <SummaryCard value={results.newEmployees.length} label="Novos Funcionários" color="green" theme={theme} onClick={() => handleDetailToggle('newEmployees')} isActive={activeDetail === 'newEmployees'} />
                                         <SummaryCard value={results.removedEmployees.length} label="Funcionários Removidos" color="purple" theme={theme} onClick={() => handleDetailToggle('removedEmployees')} isActive={activeDetail === 'removedEmployees'} />
@@ -536,10 +569,11 @@
                                     {renderDetailView()}
 
                                     <div className="mt-8 text-center space-y-2 md:space-y-0 md:space-x-4">
-                                        <button onClick={handleExport} className="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition-colors duration-300 w-full md:w-auto">
+                                        <button onClick={handleExport} className="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition-colors duration-300 w-full md:w-auto inline-flex items-center justify-center">
                                             Exportar Planilha SOC Atualizada
                                         </button>
-                                        <button onClick={handleClear} className="bg-gray-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-gray-600 transition-colors duration-300 w-full md:w-auto">
+                                        <button onClick={handleClear} className="bg-red-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-red-700 transition-colors duration-300 w-full md:w-auto inline-flex items-center justify-center">
+                                            <TrashIcon />
                                             Limpar
                                         </button>
                                     </div>
@@ -548,7 +582,7 @@
                         </div>
                     </main>
                     <footer className={`text-center text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mt-8 py-4`}>
-                        <p>Versão 2.2 (React) | Em caso de erro, reportar para robsonmorais@produtiva.srv.br</p>
+                        <p>Versão 2.4 (React) | Em caso de erro, reportar para robsonmorais@produtiva.srv.br</p>
                     </footer>
                 </div>
             );
