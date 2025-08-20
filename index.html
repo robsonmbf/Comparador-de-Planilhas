@@ -41,7 +41,7 @@
     <script type="text/babel">
         const { useState, useCallback, useEffect, useRef } = React;
 
-        const APP_VERSION = "4.2";
+        const APP_VERSION = "4.3";
 
         // --- Ícones em SVG ---
         const ThemeToggleIcon = ({ theme }) => (
@@ -400,6 +400,8 @@
             const [companyFile, setCompanyFile] = useState(null);
             const [socFileInfo, setSocFileInfo] = useState(null);
             const [companyFileInfo, setCompanyFileInfo] = useState(null);
+            const [codUnid, setCodUnid] = useState('');
+            const [nomeUnidade, setNomeUnidade] = useState('');
 
             const [isLoading, setIsLoading] = useState(false);
             const [error, setError] = useState(null);
@@ -735,8 +737,8 @@
             };
 
             const handleGenerateModel = async () => {
-                if (!companyFile) {
-                    setError({ title: 'Arquivo Faltando', message: 'Por favor, selecione a planilha da empresa para gerar o modelo.' });
+                if (!companyFile || !codUnid || !nomeUnidade) {
+                    setError({ title: 'Dados Faltando', message: 'Por favor, preencha o Código e Nome da Unidade e selecione a planilha da empresa.' });
                     return;
                 }
                 setIsLoading(true);
@@ -745,22 +747,26 @@
                     const companyFileData = await readAndProcessSheet(companyFile);
                     const standardizedData = standardizeData(companyFileData.jsonData);
 
-                    const modelHeaders = ["Cod Funcionário", "Nome Funcionário", "CPF", "Data de Nascimento", "Data de Admissão", "Matrícula", "Situação", "Nome Setor", "Nome Cargo"];
+                    const modelHeaders = ["Cod.Unid","Nome Unidade","Cod.Setor","Nome Setor","Cod.Cargo","Nome Cargo","Matrícula","Cod Funcionário","Nome Funcionário","Dt.Nascimento","Sexo","Situação","Dt.Admissão","Dt.Demissão","Estado Civil","Pis/Pasep","Contratação","Rg","UF-RG","CPF","CTPS","Endereço","Bairro","Cidade","UF","Cep","Tel","Naturalidade","Cor","E-mail","Deficiencia","CBO","GFIP","Endereço Unidade","Bairro Unidade","Cidade Unidade","Estado Unidade","Cep Unidade","CNPJ Unidade","Inscrição Unidade","Tel1 Unidade","Tel2 Unidade","Tel3 Unidade","Tel4 Unidade","Contato Unid","Cnae","Número Endereço Funcionário","Complemento Endereço Funcionário","Razão Social Unid.","Nome da Mae do Funcionário","Cod.Centro Custo","Dt. Ultima Movimentação","Cod. Unidade contratante","Razão Social","CNPJ","Turno","Dt.Emissão.Cart.Prof","Série CTPS","CNAE 2.0","CNAE Livre","Descrição CNAE Livre","CEI","Função","CNAE 7","Tipo de CNAE Utilizado","Descrição Detalhada do Cargo","Nº endereço Unidade","Complemento endereço Unidade","Regime de Revezamento","Orgão Expedidor do RG","Campo Livre 1","Campo Livre 2","Campo Livre 3","Telefone SMS","Grau de Risco","UF CTPS","Nome Centro Custo","Autoriza SMS","Endereço Cobrança Unidade","Número Endereço Cobrança Unidade","Bairro Cobrança Unidade","Cidade Cobrança Unidade","Estado Cobrança Unidade","Cep Cobrança Unidade","Complemento Endereço Cobrança Unidade","Remuneração Mensal (R$)","Telefone Comercial","Telefone Celular","Data Emissão RG","Código do País de Nascimento","Origem Descrição Detalhada","Unidade Contratante","Escolaridade","Código Categoria (eSocial)","Matrícula RH","Gênero","Nome Social","Tipo de Admissão","Grau de Instrução","Nome do Pai do Funcionário","Tipo de Vínculo","Nome do Turno","Campo Livre 4","CPF Unidade","CAEPF Unidade","Tipo Sanguíneo","Dt. Inicio Periodo Aquisitivo","Dt. Fim Periodo Aquisitivo","CNO Unidade","Desconsiderar para o eSocial","Dt. Validade RG","Desconsiderar Unidade para o eSocial"];
 
                     const outputData = [
                         ['Modelo 1'],
                         modelHeaders,
-                        ...standardizedData.map((emp, index) => [
-                            index + 1, // Cod Funcionário
-                            emp.nome || '',
-                            emp.cpf || '',
-                            emp.dataNascimento || '',
-                            emp.dataAdmissao || '',
-                            emp.matricula || '',
-                            'S', // Situação
-                            formatTitleCase(emp.nomeSetor),
-                            formatTitleCase(emp.nomeCargo)
-                        ])
+                        ...standardizedData.map((emp, index) => {
+                            const row = new Array(modelHeaders.length).fill('');
+                            row[0] = codUnid;
+                            row[1] = nomeUnidade;
+                            row[7] = index + 1; // Cod Funcionário
+                            row[8] = emp.nome || ''; // Nome Funcionário
+                            row[19] = emp.cpf || ''; // CPF
+                            row[9] = emp.dataNascimento || ''; // Dt.Nascimento
+                            row[12] = emp.dataAdmissao || ''; // Dt.Admissão
+                            row[6] = emp.matricula || ''; // Matrícula
+                            row[11] = 'S'; // Situação
+                            row[3] = formatTitleCase(emp.nomeSetor); // Nome Setor
+                            row[5] = formatTitleCase(emp.nomeCargo); // Nome Cargo
+                            return row;
+                        })
                     ];
 
                     const worksheet = XLSX.utils.aoa_to_sheet(outputData);
@@ -901,8 +907,18 @@
                             </>
                         ) : (
                              <>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                                     <div>
+                                        <label htmlFor="codUnid" className={`block text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} mb-2`}>1. Código da Unidade</label>
+                                        <input id="codUnid" type="text" value={codUnid} onChange={(e) => setCodUnid(e.target.value)} className={`w-full p-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-600 border-gray-500' : 'bg-white border-gray-300'}`} />
+                                     </div>
+                                      <div>
+                                        <label htmlFor="nomeUnidade" className={`block text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} mb-2`}>2. Nome da Unidade</label>
+                                        <input id="nomeUnidade" type="text" value={nomeUnidade} onChange={(e) => setNomeUnidade(e.target.value)} className={`w-full p-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-600 border-gray-500' : 'bg-white border-gray-300'}`} />
+                                     </div>
+                                </div>
                                 <div className="mb-8">
-                                    <FileInput id="company-file-generate" label="1. Planilha da Empresa" onFileSelect={(file) => handleFileSelect(file, 'company')} fileInfo={companyFileInfo} theme={theme} />
+                                    <FileInput id="company-file-generate" label="3. Planilha da Empresa" onFileSelect={(file) => handleFileSelect(file, 'company')} fileInfo={companyFileInfo} theme={theme} />
                                 </div>
                                 <div className="text-center">
                                     <button onClick={handleGenerateModel} disabled={isLoading} className="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:bg-gray-500">
@@ -949,7 +965,7 @@
                         </div>
                     </main>
                     <footer className={`text-center text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mt-8 py-4`}>
-                        <p>Versão 4.1 (React) | Em caso de erro, reportar para robsonmorais@produtiva.srv.br</p>
+                        <p>Versão 4.2 (React) | Em caso de erro, reportar para robsonmorais@produtiva.srv.br</p>
                     </footer>
                     <ChatModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} theme={theme} />
                     <UpdateNotesModal isOpen={isUpdateModalOpen} onClose={handleCloseUpdateModal} theme={theme} />
