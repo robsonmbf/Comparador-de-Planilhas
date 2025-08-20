@@ -204,7 +204,8 @@
                 
                 try {
                     const payload = { contents: chatHistory };
-                    const apiKey = "";
+                    // IMPORTANTE: Cole sua chave de API do Google AI Studio aqui
+                    const apiKey = "AIzaSyDziD1t4pbtPtTMm2CgoGacvVYyqcvTNnY"; // <--- CHAVE INSERIDA
                     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
                     
                     const response = await fetch(apiUrl, {
@@ -227,7 +228,7 @@
                     }
                 } catch (error) {
                     console.error("Erro ao chamar a API Gemini:", error);
-                    setMessages(prev => [...prev, { role: 'assistant', text: 'Desculpe, não consegui processar sua pergunta. Tente novamente.' }]);
+                    setMessages(prev => [...prev, { role: 'assistant', text: 'Desculpe, não consegui processar sua pergunta. Verifique se a chave de API foi inserida corretamente no código.' }]);
                 } finally {
                     setIsLoading(false);
                 }
@@ -741,7 +742,7 @@
                         </div>
                     </main>
                     <footer className={`text-center text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mt-8 py-4`}>
-                        <p>Versão 3.6 (React) | Em caso de erro, reportar para robsonmorais@produtiva.srv.br</p>
+                        <p>Versão 3.7 (React) | Em caso de erro, reportar para robsonmorais@produtiva.srv.br</p>
                     </footer>
                     <ChatModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} theme={theme} />
                 </div>
