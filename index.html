@@ -41,7 +41,7 @@
     <script type="text/babel">
         const { useState, useCallback, useEffect, useRef } = React;
 
-        const APP_VERSION = "4.7";
+        const APP_VERSION = "4.8";
 
         // --- Ícones em SVG ---
         const ThemeToggleIcon = ({ theme }) => (
@@ -171,7 +171,12 @@
 
         const normalizeCpf = (cpfValue) => {
             if (cpfValue === null || typeof cpfValue === 'undefined') return '';
-            return String(cpfValue).replace(/\D/g, '');
+            let cpfString = String(cpfValue).replace(/\D/g, '');
+            // Adiciona zeros à esquerda se o CPF tiver menos de 11 dígitos
+            while (cpfString.length > 0 && cpfString.length < 11) {
+                cpfString = '0' + cpfString;
+            }
+            return cpfString;
         };
 
         const formatCpf = (cpf) => {
@@ -911,7 +916,7 @@
                     socEmployees: <EmployeeList employees={results.socData} theme={theme} />,
                     companyEmployees: <EmployeeList employees={results.companyData} theme={theme} />,
                     discrepancies: (
-                        <div className="space-y-4">
+                        <div className="space-y-4 max-h-96 overflow-auto">
                             {results.discrepancies.map((item, i) => (
                                 <div key={i} className={`${theme === 'dark' ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'} border rounded-lg p-4`}>
                                     <p className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{item.name}</p>
@@ -1059,7 +1064,7 @@
                         </div>
                     </main>
                     <footer className={`text-center text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mt-8 py-4`}>
-                        <p>Versão 4.6 (React) | Em caso de erro, reportar para robsonmorais@produtiva.srv.br</p>
+                        <p>Versão 4.7 (React) | Em caso de erro, reportar para robsonmorais@produtiva.srv.br</p>
                     </footer>
                     <ChatModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} theme={theme} />
                     <UpdateNotesModal isOpen={isUpdateModalOpen} onClose={handleCloseUpdateModal} theme={theme} />
