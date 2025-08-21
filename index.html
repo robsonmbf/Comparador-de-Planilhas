@@ -42,7 +42,7 @@
         const { useState, useCallback, useEffect, useRef } = React;
 
         // A versão da aplicação, usada para controlar a exibição das notas de atualização.
-        const APP_VERSION = "5.0";
+        const APP_VERSION = "5.1";
 
         // --- Ícones em SVG ---
         // Componente para alternar o ícone de tema (sol/lua).
@@ -106,40 +106,50 @@
                 <p className={`ml-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>{text}</p>
             </div>
         );
-
-        // Cartão de resumo com um único valor.
-        const SummaryCard = ({ value, label, color, theme, onClick, isActive }) => (
-            <button 
-                onClick={onClick}
-                disabled={value === 0 && !onClick}
-                className={`w-full p-4 rounded-lg text-center border transition-all duration-300 ${isActive ? `ring-2 ring-offset-2 ${theme === 'dark' ? 'ring-offset-gray-700' : 'ring-offset-white'} ring-${color}-500` : ''} ${value === 0 && onClick ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'} ${theme === 'dark' ? 'bg-gray-900/50 border-gray-700' : 'bg-white border-gray-200'}`}
-            >
-                <p className={`text-3xl font-bold text-${color}-${theme === 'dark' ? '400' : '600'}`}>{value}</p>
-                <p className={`text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{label}</p>
-            </button>
-        );
         
-        // Cartão de resumo para status (ativos/inativos).
-        const StatusSummaryCard = ({ active, inactive, label, theme, onClick, isActive }) => (
-            <button 
-                onClick={onClick}
-                disabled={(active + inactive) === 0}
-                className={`w-full p-4 rounded-lg text-center border transition-all duration-300 ${isActive ? `ring-2 ring-offset-2 ${theme === 'dark' ? 'ring-offset-gray-700' : 'ring-offset-white'} ring-blue-500` : ''} ${(active + inactive) === 0 ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'} ${theme === 'dark' ? 'bg-gray-900/50 border-gray-700' : 'bg-white border-gray-200'}`}
-            >
-                <div className="flex justify-center items-center space-x-4">
-                    <div>
-                        <p className={`text-3xl font-bold text-green-${theme === 'dark' ? '400' : '600'}`}>{active}</p>
-                        <p className={`text-xs font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Ativos</p>
-                    </div>
-                     <div>
-                        <p className={`text-3xl font-bold text-red-${theme === 'dark' ? '400' : '600'}`}>{inactive}</p>
-                        <p className={`text-xs font-medium ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Inativos</p>
+        // NOVO: Componente de seção de resultados expansível.
+        const ResultSection = ({ title, count, children, theme, isOpen, onToggle, color = 'blue' }) => {
+            if (count === 0) return null;
+
+            const colorClasses = {
+                red: 'border-red-500/50',
+                green: 'border-green-500/50',
+                purple: 'border-purple-500/50',
+                yellow: 'border-yellow-500/50',
+                blue: 'border-blue-500/50',
+            };
+
+            const badgeColorClasses = {
+                red: theme === 'dark' ? 'bg-red-900 text-red-300' : 'bg-red-100 text-red-800',
+                green: theme === 'dark' ? 'bg-green-900 text-green-300' : 'bg-green-100 text-green-800',
+                purple: theme === 'dark' ? 'bg-purple-900 text-purple-300' : 'bg-purple-100 text-purple-800',
+                yellow: theme === 'dark' ? 'bg-yellow-900 text-yellow-300' : 'bg-yellow-100 text-yellow-800',
+                blue: theme === 'dark' ? 'bg-blue-900 text-blue-300' : 'bg-blue-100 text-blue-800',
+            };
+
+            return (
+                <div className={`border-l-4 rounded-r-lg mb-4 ${colorClasses[color]} ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'}`}>
+                    <button
+                        onClick={onToggle}
+                        className="w-full flex justify-between items-center p-4 text-left"
+                    >
+                        <span className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{title}</span>
+                        <div className="flex items-center">
+                            <span className={`mr-4 px-3 py-1 text-sm font-bold rounded-full ${badgeColorClasses[color]}`}>{count}</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                        </div>
+                    </button>
+                    <div className={`detail-view ${isOpen ? 'open' : ''}`}>
+                        <div className="p-4 border-t border-gray-500/30">
+                            {children}
+                        </div>
                     </div>
                 </div>
-                <p className={`text-sm font-medium mt-2 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{label}</p>
-            </button>
-        );
-        
+            );
+        };
+
         // --- Mapeamento e Funções Utilitárias ---
         // Mapeia nomes de colunas padrão para possíveis variações encontradas nas planilhas.
         const columnMappings = {
@@ -268,23 +278,16 @@
         const UpdateNotesModal = ({ isOpen, onClose, theme }) => {
              const updateHistory = [
                  {
+                    version: "5.0",
+                    notes: [
+                        { type: 'improvement', text: 'Melhoria na Lógica de Divergências: A seção de divergências foi redesenhada para maior clareza, mostrando os nomes dos funcionários envolvidos em dados duplicados.' },
+                    ]
+                },
+                 {
                     version: "4.9",
                     notes: [
                         { type: 'improvement', text: 'Geração de Modelo SOC Aprimorada: Agora preenche automaticamente Cod. Funcionário, Nome Setor e Nome Cargo, com formatação inteligente de texto.' },
                         { type: 'improvement', text: 'Validação de Dados: Antes de gerar o modelo, o sistema verifica se dados essenciais estão faltando e informa o usuário.' },
-                    ]
-                },
-                 {
-                    version: "4.5",
-                    notes: [
-                        { type: 'improvement', text: 'Aprimorada a funcionalidade "Gerar Modelo SOC" para seguir estritamente o layout oficial do Modelo 1.' },
-                    ]
-                },
-                 {
-                    version: "4.2",
-                    notes: [
-                        { type: 'improvement', text: 'Otimização do layout para se adaptar ao conteúdo, com barra de rolagem principal.' },
-                        { type: 'improvement', text: 'Correção na quebra de linha dos CPFs nas tabelas.' },
                     ]
                 },
             ];
@@ -302,7 +305,7 @@
                              <div>
                                 <p className="font-semibold text-blue-400">O que há de novo?</p>
                                 <ul className="list-disc list-inside space-y-1 mt-2">
-                                    <li><strong className="text-green-400">Melhoria na Lógica de Divergências:</strong> A seção de divergências foi redesenhada para maior clareza, mostrando os nomes dos funcionários envolvidos em dados duplicados.</li>
+                                    <li><strong className="text-green-400">Interface de Resultados Redesenhada:</strong> A visualização dos resultados foi simplificada em seções expansíveis para uma análise mais clara e direta, eliminando a navegação por cartões.</li>
                                 </ul>
                             </div>
                             <hr className={theme === 'dark' ? 'border-gray-600' : 'border-gray-300'} />
@@ -374,7 +377,7 @@
             // Estados da aplicação
             const [theme, setTheme] = useState('dark');
             const [mode, setMode] = useState('compare');
-            const [activeDetail, setActiveDetail] = useState(null);
+            const [openSections, setOpenSections] = useState({}); // NOVO: Estado para controlar seções abertas
             const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
             const [missingDataError, setMissingDataError] = useState(null);
             const [socFile, setSocFile] = useState(null);
@@ -415,9 +418,9 @@
                 setTheme(prevTheme => prevTheme === 'dark' ? 'light' : 'dark');
             };
 
-            // Mostra ou esconde a visão de detalhes de um resultado.
-            const handleDetailToggle = (detail) => {
-                setActiveDetail(prevDetail => prevDetail === detail ? null : detail);
+            // NOVO: Abre/fecha uma seção de resultados.
+            const toggleSection = (sectionName) => {
+                setOpenSections(prev => ({...prev, [sectionName]: !prev[sectionName]}));
             };
 
             // Lê e processa uma planilha, identificando o cabeçalho e convertendo para JSON.
@@ -503,7 +506,7 @@
             
             // Executa a lógica principal de comparação entre as duas planilhas.
             const handleCompare = useCallback(async () => {
-                setActiveDetail(null);
+                setOpenSections({}); // Reseta as seções abertas
                 if (!socFile || !companyFile) {
                     setError({ title: 'Arquivos Faltando', message: 'Por favor, selecione os dois arquivos de planilha para continuar.' });
                     setResults(null);
@@ -653,8 +656,8 @@
                     const removedEmployees = Array.from(socMap.values()).map(emp => ({
                         ...emp,
                         status: normalizeValue(emp.dataDemissao) 
-                            ? `Desligado no SOC (em ${normalizeValue(emp.dataDemissao)}) e não consta na planilha da Empresa` 
-                            : 'Ativo no SOC, mas não consta na planilha da Empresa'
+                            ? `Desligado no SOC (em ${normalizeValue(emp.dataDemissao)}) e não consta na planilha do Cliente` 
+                            : 'Ativo no SOC, mas não consta na planilha do Cliente'
                     }));
                     
                     const socActiveCount = validSocData.filter(emp => String(emp.situacao).toUpperCase() === 'S').length;
@@ -689,7 +692,7 @@
                 setError(null);
                 setIsLoading(false);
                 setOriginalSocData(null);
-                setActiveDetail(null);
+                setOpenSections({});
                 if (document.getElementById('soc-file')) document.getElementById('soc-file').value = '';
                 if(document.getElementById('company-file')) document.getElementById('company-file').value = '';
                 if(document.getElementById('company-file-generate')) document.getElementById('company-file-generate').value = '';
@@ -834,72 +837,6 @@
                 </div>
             );
             
-            // Renderiza a visão detalhada para a categoria de resultado selecionada.
-            const renderDetailView = () => {
-                if (!results) return null;
-
-                const detailContent = {
-                    socEmployees: <EmployeeList employees={results.socData} theme={theme} />,
-                    companyEmployees: <EmployeeList employees={results.companyData} theme={theme} />,
-                    discrepancies: (
-                        <div className="space-y-4 max-h-96 overflow-auto">
-                            {results.discrepancies.map((item, i) => (
-                                <div key={i} className={`${theme === 'dark' ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'} border rounded-lg p-4`}>
-                                    <p className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{item.title || item.name}</p>
-                                    { !item.isInternal && <div className={`flex flex-wrap gap-x-4 text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mb-2`}><span><strong>CPF:</strong> {formatCpf(item.cpf)}</span><span><strong>Matrícula:</strong> {item.matricula}</span></div>}
-                                    {item.type === 'internalStatusConflict' ? (
-                                        <table className="w-full text-xs text-left mt-2 table-fixed">
-                                            <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-100 text-gray-700'}`}><tr><th className="px-3 py-1 w-1/2">Cod Funcionário</th><th className="px-3 py-1 w-1/2">Situação no SOC</th></tr></thead>
-                                            <tbody>{item.details.map((d, j) => <tr key={j} className={`border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} last:border-b-0`}><td className={`px-3 py-1 ${theme === 'dark' ? 'bg-red-900/40 text-red-300' : 'bg-red-50 text-red-700'}`}>{d.codFuncionario}</td><td className={`px-3 py-1 ${theme === 'dark' ? 'bg-red-900/40 text-red-300' : 'bg-red-50 text-red-700'}`}>{d.situacao}</td></tr>)}</tbody>
-                                        </table>
-                                    ) : item.type === 'mixedData' ? (
-                                        <table className="w-full text-xs text-left mt-2 table-fixed">
-                                             <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-100 text-gray-700'}`}><tr><th className="px-3 py-1">Nome</th><th className="px-3 py-1">CPF</th><th className="px-3 py-1">Origem</th></tr></thead>
-                                             <tbody>{item.details.map((d, j) => <tr key={j} className={`border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} last:border-b-0`}><td className="px-3 py-1">{d.nome}</td><td className={`px-3 py-1 font-mono ${theme === 'dark' ? 'bg-red-900/40 text-red-300' : 'bg-red-50 text-red-700'}`}>{formatCpf(d.cpf)}</td><td className="px-3 py-1">{d.source}</td></tr>)}</tbody>
-                                        </table>
-                                    ) : (
-                                        <table className="w-full text-xs text-left mt-2 table-fixed">
-                                            <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-100 text-gray-700'}`}><tr><th className="px-3 py-1 w-[30%]">Campo</th><th className="px-3 py-1 w-[35%]">Informação no SOC</th><th className="px-3 py-1 w-[35%]">Informação na Planilha da Empresa</th></tr></thead>
-                                            <tbody>{item.details.map((d, j) => <tr key={j} className={`border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} last:border-b-0`}><td className="px-3 py-1 font-medium">{d.field}</td><td className={`px-3 py-1 ${theme === 'dark' ? 'bg-red-900/40 text-red-300' : 'bg-red-50 text-red-700'}`}>{d.socValue}</td><td className={`px-3 py-1 ${theme === 'dark' ? 'bg-red-900/40 text-red-300' : 'bg-red-50 text-red-700'}`}>{d.companyValue}</td></tr>)}</tbody>
-                                        </table>
-                                    )}
-                                </div>
-                            ))}
-                        </div>
-                    ),
-                    newEmployees: (
-                        <EmployeeList employees={results.newEmployees} theme={theme} />
-                    ),
-                    removedEmployees: (
-                         <div className="space-y-2 max-h-96 overflow-auto">
-                            {results.removedEmployees.map((item, i) => (
-                                <div key={i} className={`p-4 border ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'} rounded-lg`}>
-                                    <p className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{item.nome || 'Não informado'}</p>
-                                    <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} font-mono`}>{formatCpf(item.cpf)}</p>
-                                    <p className={`text-sm ${theme === 'dark' ? 'text-red-400' : 'text-red-600'} mt-1`}>{item.status}</p>
-                                </div>
-                            ))}
-                        </div>
-                    ),
-                    invalidCpfs: (
-                        <div className="overflow-auto max-h-96">
-                            <table className="w-full text-sm text-left">
-                                <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-50 text-gray-700'} text-xs uppercase sticky top-0`}><tr><th className="px-4 py-2">Nome</th><th className="px-4 py-2">CPF Informado</th><th className="px-4 py-2">Motivo</th><th className="px-4 py-2">Origem</th></tr></thead>
-                                <tbody>{results.invalidCpfs.map((item, i) => <tr key={i} className={`border-b ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'}`}><td className="px-4 py-2">{item.name}</td><td className={`px-4 py-2 font-mono whitespace-nowrap ${theme === 'dark' ? 'text-red-400' : 'text-red-600'}`}>{formatCpf(item.cpf)}</td><td className="px-4 py-2">{item.reason}</td><td className="px-4 py-2">{item.source}</td></tr>)}</tbody>
-                            </table>
-                        </div>
-                    )
-                };
-
-                return (
-                    <div className={`detail-view ${activeDetail ? 'open' : ''}`}>
-                        <div className="p-4 mt-4 border-t border-gray-500/50">
-                            {detailContent[activeDetail]}
-                        </div>
-                    </div>
-                );
-            };
-
             // Renderização principal do componente App.
             return (
                 <div className="min-h-screen flex flex-col items-center p-4">
@@ -919,8 +856,8 @@
                             <>
                                 <Notice theme={theme} />
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                                    <FileInput id="soc-file" label="1. Planilha Modelo SOC" onFileSelect={(file) => handleFileSelect(file, 'soc')} fileInfo={socFileInfo} theme={theme} />
-                                    <FileInput id="company-file" label="2. Planilha Recente da Empresa" onFileSelect={(file) => handleFileSelect(file, 'company')} fileInfo={companyFileInfo} theme={theme} />
+                                    <FileInput id="soc-file" label="1. Planilha SOC (Ativos)" onFileSelect={(file) => handleFileSelect(file, 'soc')} fileInfo={socFileInfo} theme={theme} />
+                                    <FileInput id="company-file" label="2. Planilha do Cliente" onFileSelect={(file) => handleFileSelect(file, 'company')} fileInfo={companyFileInfo} theme={theme} />
                                 </div>
                                 <div className="text-center">
                                     <button onClick={handleCompare} disabled={isLoading} className="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:bg-gray-500">
@@ -941,7 +878,7 @@
                                      </div>
                                 </div>
                                 <div className="mb-8">
-                                    <FileInput id="company-file-generate" label="3. Planilha da Empresa" onFileSelect={(file) => handleFileSelect(file, 'company')} fileInfo={companyFileInfo} theme={theme} />
+                                    <FileInput id="company-file-generate" label="3. Planilha do Cliente" onFileSelect={(file) => handleFileSelect(file, 'company')} fileInfo={companyFileInfo} theme={theme} />
                                 </div>
                                 <div className="text-center">
                                     <button onClick={handleGenerateModel} disabled={isLoading} className="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:bg-gray-500">
@@ -963,16 +900,86 @@
                             )}
                             {results && mode === 'compare' && (
                                 <div>
-                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-8">
-                                        <StatusSummaryCard active={results.socActiveCount} inactive={results.socInactiveCount} label="Funcionários no SOC" theme={theme} onClick={() => handleDetailToggle('socEmployees')} isActive={activeDetail === 'socEmployees'} />
-                                        <SummaryCard value={results.companyData.length} label="Funcionários na Empresa" color="green" theme={theme} onClick={() => handleDetailToggle('companyEmployees')} isActive={activeDetail === 'companyEmployees'} />
-                                        <SummaryCard value={results.discrepancies.length} label="Divergências" color="red" theme={theme} onClick={() => handleDetailToggle('discrepancies')} isActive={activeDetail === 'discrepancies'} />
-                                        <SummaryCard value={results.newEmployees.length} label="Novos Funcionários" color="green" theme={theme} onClick={() => handleDetailToggle('newEmployees')} isActive={activeDetail === 'newEmployees'} />
-                                        <SummaryCard value={results.removedEmployees.length} label="Situação de Funcionário" color="purple" theme={theme} onClick={() => handleDetailToggle('removedEmployees')} isActive={activeDetail === 'removedEmployees'} />
-                                        <SummaryCard value={results.invalidCpfs.length} label="CPFs Inválidos" color="yellow" theme={theme} onClick={() => handleDetailToggle('invalidCpfs')} isActive={activeDetail === 'invalidCpfs'} />
-                                    </div>
+                                    <h2 className={`text-2xl font-bold mb-4 text-center ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>Resultados da Análise</h2>
+                                    <ResultSection
+                                        title="Divergências Encontradas"
+                                        count={results.discrepancies.length}
+                                        isOpen={openSections['discrepancies']}
+                                        onToggle={() => toggleSection('discrepancies')}
+                                        theme={theme}
+                                        color="red"
+                                    >
+                                        <div className="space-y-4 max-h-96 overflow-auto">
+                                            {results.discrepancies.map((item, i) => (
+                                                <div key={i} className={`${theme === 'dark' ? 'bg-gray-900/50' : 'bg-gray-50'} border rounded-lg p-4`}>
+                                                    <p className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{item.title || item.name}</p>
+                                                    { !item.isInternal && <div className={`flex flex-wrap gap-x-4 text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mb-2`}><span><strong>CPF:</strong> {formatCpf(item.cpf)}</span><span><strong>Matrícula:</strong> {item.matricula}</span></div>}
+                                                    {item.type === 'internalStatusConflict' ? (
+                                                        <table className="w-full text-xs text-left mt-2 table-fixed">
+                                                            <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-100 text-gray-700'}`}><tr><th className="px-3 py-1 w-1/2">Cod Funcionário</th><th className="px-3 py-1 w-1/2">Situação no SOC</th></tr></thead>
+                                                            <tbody>{item.details.map((d, j) => <tr key={j} className={`border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} last:border-b-0`}><td className={`px-3 py-1 ${theme === 'dark' ? 'bg-red-900/40 text-red-300' : 'bg-red-50 text-red-700'}`}>{d.codFuncionario}</td><td className={`px-3 py-1 ${theme === 'dark' ? 'bg-red-900/40 text-red-300' : 'bg-red-50 text-red-700'}`}>{d.situacao}</td></tr>)}</tbody>
+                                                        </table>
+                                                    ) : item.type === 'mixedData' ? (
+                                                        <table className="w-full text-xs text-left mt-2 table-fixed">
+                                                             <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-100 text-gray-700'}`}><tr><th className="px-3 py-1">Nome</th><th className="px-3 py-1">CPF</th><th className="px-3 py-1">Origem</th></tr></thead>
+                                                             <tbody>{item.details.map((d, j) => <tr key={j} className={`border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} last:border-b-0`}><td className="px-3 py-1">{d.nome}</td><td className={`px-3 py-1 font-mono ${theme === 'dark' ? 'bg-red-900/40 text-red-300' : 'bg-red-50 text-red-700'}`}>{formatCpf(d.cpf)}</td><td className="px-3 py-1">{d.source}</td></tr>)}</tbody>
+                                                        </table>
+                                                    ) : (
+                                                        <table className="w-full text-xs text-left mt-2 table-fixed">
+                                                            <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-100 text-gray-700'}`}><tr><th className="px-3 py-1 w-[30%]">Campo</th><th className="px-3 py-1 w-[35%]">Informação no SOC</th><th className="px-3 py-1 w-[35%]">Informação na Planilha do Cliente</th></tr></thead>
+                                                            <tbody>{item.details.map((d, j) => <tr key={j} className={`border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} last:border-b-0`}><td className="px-3 py-1 font-medium">{d.field}</td><td className={`px-3 py-1 ${theme === 'dark' ? 'bg-red-900/40 text-red-300' : 'bg-red-50 text-red-700'}`}>{d.socValue}</td><td className={`px-3 py-1 ${theme === 'dark' ? 'bg-red-900/40 text-red-300' : 'bg-red-50 text-red-700'}`}>{d.companyValue}</td></tr>)}</tbody>
+                                                        </table>
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </ResultSection>
                                     
-                                    {renderDetailView()}
+                                    <ResultSection
+                                        title="Novos Funcionários (a adicionar no SOC)"
+                                        count={results.newEmployees.length}
+                                        isOpen={openSections['newEmployees']}
+                                        onToggle={() => toggleSection('newEmployees')}
+                                        theme={theme}
+                                        color="green"
+                                    >
+                                        <EmployeeList employees={results.newEmployees} theme={theme} />
+                                    </ResultSection>
+
+                                    <ResultSection
+                                        title="Funcionários a Inativar (não encontrados na planilha do Cliente)"
+                                        count={results.removedEmployees.length}
+                                        isOpen={openSections['removedEmployees']}
+                                        onToggle={() => toggleSection('removedEmployees')}
+                                        theme={theme}
+                                        color="purple"
+                                    >
+                                        <div className="space-y-2 max-h-96 overflow-auto">
+                                            {results.removedEmployees.map((item, i) => (
+                                                <div key={i} className={`p-4 border ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} rounded-lg`}>
+                                                    <p className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{item.nome || 'Não informado'}</p>
+                                                    <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} font-mono`}>{formatCpf(item.cpf)}</p>
+                                                    <p className={`text-sm ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'} mt-1`}>{item.status}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </ResultSection>
+
+                                     <ResultSection
+                                        title="CPFs Inválidos ou em Branco"
+                                        count={results.invalidCpfs.length}
+                                        isOpen={openSections['invalidCpfs']}
+                                        onToggle={() => toggleSection('invalidCpfs')}
+                                        theme={theme}
+                                        color="yellow"
+                                    >
+                                        <div className="overflow-auto max-h-96">
+                                            <table className="w-full text-sm text-left">
+                                                <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-50 text-gray-700'} text-xs uppercase sticky top-0`}><tr><th className="px-4 py-2">Nome</th><th className="px-4 py-2">CPF Informado</th><th className="px-4 py-2">Motivo</th><th className="px-4 py-2">Origem</th></tr></thead>
+                                                <tbody>{results.invalidCpfs.map((item, i) => <tr key={i} className={`border-b ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'}`}><td className="px-4 py-2">{item.name}</td><td className={`px-4 py-2 font-mono whitespace-nowrap ${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'}`}>{formatCpf(item.cpf)}</td><td className="px-4 py-2">{item.reason}</td><td className="px-4 py-2">{item.source}</td></tr>)}</tbody>
+                                            </table>
+                                        </div>
+                                    </ResultSection>
 
                                     <div className="mt-8 text-center space-y-2 md:space-y-0 md:space-x-4">
                                         <button onClick={handleExport} className="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition-colors duration-300 w-full md:w-auto inline-flex items-center justify-center">
