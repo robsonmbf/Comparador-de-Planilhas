@@ -41,7 +41,7 @@
     <script type="text/babel">
         const { useState, useCallback, useEffect, useRef } = React;
 
-        const APP_VERSION = "4.5";
+        const APP_VERSION = "4.6";
 
         // --- Ícones em SVG ---
         const ThemeToggleIcon = ({ theme }) => (
@@ -458,6 +458,8 @@
             const [error, setError] = useState(null);
             const [results, setResults] = useState(null);
             const [originalSocData, setOriginalSocData] = useState(null);
+            const [dataForIncompleteGeneration, setDataForIncompleteGeneration] = useState(null);
+
 
             useEffect(() => {
                 const seenVersion = localStorage.getItem('appVersion');
@@ -820,8 +822,8 @@
                 setIsLoading(true);
                 setError(null);
                 try {
-                    const companyFileData = await readAndProcessSheet(companyFile);
-                    const standardizedData = standardizeData(companyFileData.jsonData);
+                    const { jsonData } = await readAndProcessSheet(companyFile);
+                    const standardizedData = standardizeData(jsonData);
 
                     const requiredFields = ['nome', 'cpf', 'dataNascimento', 'dataAdmissao', 'matricula', 'nomeCargo', 'nomeSetor'];
                     const employeesWithMissingData = standardizedData.map((emp, index) => {
@@ -830,6 +832,7 @@
                     }).filter(emp => emp.missing.length > 0);
 
                     if (employeesWithMissingData.length > 0) {
+                        setDataForIncompleteGeneration(standardizedData);
                         setMissingDataError(employeesWithMissingData);
                     } else {
                         proceedWithGeneration(standardizedData);
@@ -1033,7 +1036,7 @@
                         isOpen={!!missingDataError} 
                         onClose={() => setMissingDataError(null)}
                         onConfirm={() => {
-                            proceedWithGeneration(standardizeData(companyFile.jsonData));
+                            proceedWithGeneration(dataForIncompleteGeneration);
                             setMissingDataError(null);
                         }}
                         missingData={missingDataError}
