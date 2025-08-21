@@ -41,7 +41,7 @@
     <script type="text/babel">
         const { useState, useCallback, useEffect, useRef } = React;
 
-        const APP_VERSION = "4.8";
+        const APP_VERSION = "4.9";
 
         // --- Ícones em SVG ---
         const ThemeToggleIcon = ({ theme }) => (
@@ -945,7 +945,7 @@
                         <EmployeeList employees={results.newEmployees} theme={theme} />
                     ),
                     removedEmployees: (
-                         <div className="space-y-2">
+                         <div className="space-y-2 max-h-96 overflow-auto">
                             {results.removedEmployees.map((item, i) => (
                                 <div key={i} className={`p-4 border ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'} rounded-lg`}>
                                     <p className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{item.nome || 'Não informado'}</p>
@@ -956,9 +956,9 @@
                         </div>
                     ),
                     invalidCpfs: (
-                        <div className="overflow-x-auto">
+                        <div className="overflow-auto max-h-96">
                             <table className="w-full text-sm text-left">
-                                <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-50 text-gray-700'} text-xs uppercase`}><tr><th className="px-4 py-2">Nome</th><th className="px-4 py-2">CPF Informado</th><th className="px-4 py-2">Motivo</th><th className="px-4 py-2">Origem</th></tr></thead>
+                                <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-50 text-gray-700'} text-xs uppercase sticky top-0`}><tr><th className="px-4 py-2">Nome</th><th className="px-4 py-2">CPF Informado</th><th className="px-4 py-2">Motivo</th><th className="px-4 py-2">Origem</th></tr></thead>
                                 <tbody>{results.invalidCpfs.map((item, i) => <tr key={i} className={`border-b ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'}`}><td className="px-4 py-2">{item.name}</td><td className={`px-4 py-2 font-mono whitespace-nowrap ${theme === 'dark' ? 'text-red-400' : 'text-red-600'}`}>{formatCpf(item.cpf)}</td><td className="px-4 py-2">{item.reason}</td><td className="px-4 py-2">{item.source}</td></tr>)}</tbody>
                             </table>
                         </div>
