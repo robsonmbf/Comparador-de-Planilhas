@@ -126,7 +126,7 @@
             sexo: ['Sexo'],
             matricula: ['Matrícula', 'MATRICULA e-SOCIAL DO FUNCIONÁRIO', 'MATRICULA'],
             codFuncionario: ['Cod Funcionário', 'Cód. Funcionário', 'Código do Funcionário'],
-            nomeCargo: ['Cargo', 'Nome Cargo', 'Função'],
+            nomeCargo: ['Cargo', 'Nome Cargo', 'Função', 'CARGO/ FUNÇÃO DE ACORDO COM e-SOCIAL'],
             nomeSetor: ['Setor', 'Nome Setor', 'Departamento']
         };
 
@@ -334,7 +334,7 @@
         // --- Componente de Notas de Atualização ---
         const UpdateNotesModal = ({ isOpen, onClose, theme }) => {
              const updateHistory = [
-                {
+                 {
                     version: "4.2",
                     notes: [
                         { type: 'improvement', text: 'Otimização do layout para se adaptar ao conteúdo, com barra de rolagem principal.' },
@@ -731,13 +731,9 @@
                 setIsLoading(false);
                 setOriginalSocData(null);
                 setActiveDetail(null);
-                document.getElementById('soc-file').value = '';
-                if(document.getElementById('company-file')) {
-                    document.getElementById('company-file').value = '';
-                }
-                 if(document.getElementById('company-file-generate')) {
-                    document.getElementById('company-file-generate').value = '';
-                }
+                if (document.getElementById('soc-file')) document.getElementById('soc-file').value = '';
+                if(document.getElementById('company-file')) document.getElementById('company-file').value = '';
+                if(document.getElementById('company-file-generate')) document.getElementById('company-file-generate').value = '';
             };
             
             const handleExport = () => {
@@ -1029,7 +1025,7 @@
                         </div>
                     </main>
                     <footer className={`text-center text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mt-8 py-4`}>
-                        <p>Versão 4.4 (React) | Em caso de erro, reportar para robsonmorais@produtiva.srv.br</p>
+                        <p>Versão 4.5 (React) | Em caso de erro, reportar para robsonmorais@produtiva.srv.br</p>
                     </footer>
                     <ChatModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} theme={theme} />
                     <UpdateNotesModal isOpen={isUpdateModalOpen} onClose={handleCloseUpdateModal} theme={theme} />
