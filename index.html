@@ -41,7 +41,7 @@
     <script type="text/babel">
         const { useState, useCallback, useEffect, useRef } = React;
 
-        const APP_VERSION = "4.3";
+        const APP_VERSION = "4.5";
 
         // --- Ícones em SVG ---
         const ThemeToggleIcon = ({ theme }) => (
@@ -69,9 +69,15 @@
         );
 
         const Notice = ({ theme }) => (
-            <div className={`${theme === 'dark' ? 'bg-gray-900 border-blue-500' : 'bg-blue-50 border-blue-400'} border-l-4 p-4 rounded-lg mb-8`} role="alert">
-                <p className="font-bold text-red-500 blinking-text">Atenção!</p>
-                <p className={theme === 'dark' ? 'text-gray-200' : 'text-blue-700'}>O sistema busca por nomes de coluna como <strong>CPF</strong>, <strong>Nome</strong>, <strong>Data de Nascimento</strong>, <strong>Data de Admissão</strong>, <strong>Matrícula</strong>, <strong>Cargo</strong> e <strong>Setor</strong>.</p>
+            <div className={`${theme === 'dark' ? 'bg-gray-900 border-blue-500' : 'bg-blue-50 border-blue-400'} border-l-4 p-4 rounded-lg mb-8 text-sm`}>
+                <p className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>Dicas:</p>
+                <ul className={`list-disc list-inside mt-2 space-y-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>
+                    <li>Antes de realizar a importação verifique se está logado na empresa correta.</li>
+                    <li>Orientamos que sejam realizados testes com poucos dados, principalmente se a planilha conter diversas alterações.</li>
+                    <li>Em caso de dúvidas consulte o Manual de Importação ou o Suporte SOC.</li>
+                </ul>
+                <p className={`mt-4 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}><strong className="font-semibold">Obs:</strong> Se a planilha apresentar mais de 200 registros, será gerado um Pedido de Processamento.</p>
+                <p className={`mt-4 font-bold ${theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600'}`}>Importação de Dados é de inteira responsabilidade do usuário, sendo assim o Suporte SOC não está autorizado a realizar correções.</p>
             </div>
         );
 
@@ -397,6 +403,41 @@
                 </div>
             )
         };
+        
+        const MissingDataModal = ({ isOpen, onClose, onConfirm, missingData, theme }) => {
+            if (!isOpen) return null;
+
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className={`w-full max-w-xl rounded-lg shadow-2xl ${theme === 'dark' ? 'bg-gray-800 border border-gray-700' : 'bg-white'}`}>
+                        <div className={`p-4 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
+                            <h3 className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Dados Obrigatórios Faltando</h3>
+                        </div>
+                        <div className="p-6 text-sm">
+                            <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} mb-4`}>
+                                Foram encontrados funcionários com informações essenciais faltando. Você pode cancelar para corrigir a planilha original ou gerar um modelo incompleto.
+                            </p>
+                            <div className={`border rounded-lg p-2 max-h-64 overflow-y-auto ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'}`}>
+                                {missingData.map(emp => (
+                                    <div key={emp.index} className={`p-2 ${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} rounded`}>
+                                        <p className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Linha {emp.index}: {emp.nome || 'Nome não encontrado'}</p>
+                                        <p className="text-red-500 text-xs">Faltando: {emp.missing.join(', ')}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className={`p-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} flex justify-end space-x-4`}>
+                             <button onClick={onClose} className={`font-bold py-2 px-4 rounded-lg transition-colors ${theme === 'dark' ? 'bg-gray-600 hover:bg-gray-500 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'}`}>
+                                Cancelar
+                            </button>
+                             <button onClick={onConfirm} className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
+                                Gerar Mesmo Assim
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
 
         // --- Componente Principal ---
         function App() {
@@ -405,6 +446,7 @@
             const [activeDetail, setActiveDetail] = useState(null);
             const [isChatOpen, setIsChatOpen] = useState(false);
             const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+            const [missingDataError, setMissingDataError] = useState(null);
             const [socFile, setSocFile] = useState(null);
             const [companyFile, setCompanyFile] = useState(null);
             const [socFileInfo, setSocFileInfo] = useState(null);
@@ -745,6 +787,35 @@
                 XLSX.writeFile(workbook, "Planilha_SOC_Atualizada.xlsx");
             };
 
+            const proceedWithGeneration = (data) => {
+                const modelHeaders = ["Cod.Unid","Nome Unidade","Cod.Setor","Nome Setor","Cod.Cargo","Nome Cargo","Matrícula","Cod Funcionário","Nome Funcionário","Dt.Nascimento","Sexo","Situação","Dt.Admissão","Dt.Demissão","Estado Civil","Pis/Pasep","Contratação","Rg","UF-RG","CPF","CTPS","Endereço","Bairro","Cidade","UF","Cep","Tel","Naturalidade","Cor","E-mail","Deficiencia","CBO","GFIP","Endereço Unidade","Bairro Unidade","Cidade Unidade","Estado Unidade","Cep Unidade","CNPJ Unidade","Inscrição Unidade","Tel1 Unidade","Tel2 Unidade","Tel3 Unidade","Tel4 Unidade","Contato Unid","Cnae","Número Endereço Funcionário","Complemento Endereço Funcionário","Razão Social Unid.","Nome da Mae do Funcionário","Cod.Centro Custo","Dt. Ultima Movimentação","Cod. Unidade contratante","Razão Social","CNPJ","Turno","Dt.Emissão.Cart.Prof","Série CTPS","CNAE 2.0","CNAE Livre","Descrição CNAE Livre","CEI","Função","CNAE 7","Tipo de CNAE Utilizado","Descrição Detalhada do Cargo","Nº endereço Unidade","Complemento endereço Unidade","Regime de Revezamento","Orgão Expedidor do RG","Campo Livre 1","Campo Livre 2","Campo Livre 3","Telefone SMS","Grau de Risco","UF CTPS","Nome Centro Custo","Autoriza SMS","Endereço Cobrança Unidade","Número Endereço Cobrança Unidade","Bairro Cobrança Unidade","Cidade Cobrança Unidade","Estado Cobrança Unidade","Cep Cobrança Unidade","Complemento Endereço Cobrança Unidade","Remuneração Mensal (R$)","Telefone Comercial","Telefone Celular","Data Emissão RG","Código do País de Nascimento","Origem Descrição Detalhada","Unidade Contratante","Escolaridade","Código Categoria (eSocial)","Matrícula RH","Gênero","Nome Social","Tipo de Admissão","Grau de Instrução","Nome do Pai do Funcionário","Tipo de Vínculo","Nome do Turno","Campo Livre 4","CPF Unidade","CAEPF Unidade","Tipo Sanguíneo","Dt. Inicio Periodo Aquisitivo","Dt. Fim Periodo Aquisitivo","CNO Unidade","Desconsiderar para o eSocial","Dt. Validade RG","Desconsiderar Unidade para o eSocial"];
+                const outputData = [
+                    ['Modelo 1'],
+                    modelHeaders,
+                    ...data.map((emp, index) => {
+                        const row = new Array(modelHeaders.length).fill('');
+                        row[0] = codUnid;
+                        row[1] = nomeUnidade;
+                        row[7] = index + 1; // Cod Funcionário
+                        row[8] = emp.nome || ''; // Nome Funcionário
+                        row[19] = emp.cpf || ''; // CPF
+                        row[9] = emp.dataNascimento || ''; // Dt.Nascimento
+                        row[12] = emp.dataAdmissao || ''; // Dt.Admissão
+                        row[6] = emp.matricula || ''; // Matrícula
+                        row[11] = 'S'; // Situação
+                        row[3] = formatTitleCase(emp.nomeSetor); // Nome Setor
+                        row[5] = formatTitleCase(emp.nomeCargo); // Nome Cargo
+                        row[10] = (emp.sexo && emp.sexo.toUpperCase().startsWith('M')) ? 'M' : (emp.sexo && emp.sexo.toUpperCase().startsWith('F')) ? 'F' : ''; // Sexo
+                        return row;
+                    })
+                ];
+
+                const worksheet = XLSX.utils.aoa_to_sheet(outputData);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Modelo SOC Gerado");
+                XLSX.writeFile(workbook, "Modelo_SOC_Gerado.xlsx");
+            };
+
             const handleGenerateModel = async () => {
                 if (!companyFile || !codUnid || !nomeUnidade) {
                     setError({ title: 'Dados Faltando', message: 'Por favor, preencha o Código e Nome da Unidade e selecione a planilha da empresa.' });
@@ -763,40 +834,12 @@
                     }).filter(emp => emp.missing.length > 0);
 
                     if (employeesWithMissingData.length > 0) {
-                        const errorMsg = "Dados obrigatórios faltando para os seguintes funcionários: " + employeesWithMissingData.map(e => `Linha ${e.index} (${e.nome || 'Nome não encontrado'})`).join(', ');
-                        throw new Error(errorMsg);
+                        setMissingDataError(employeesWithMissingData);
+                    } else {
+                        proceedWithGeneration(standardizedData);
                     }
-
-                    const modelHeaders = ["Cod.Unid","Nome Unidade","Cod.Setor","Nome Setor","Cod.Cargo","Nome Cargo","Matrícula","Cod Funcionário","Nome Funcionário","Dt.Nascimento","Sexo","Situação","Dt.Admissão","Dt.Demissão","Estado Civil","Pis/Pasep","Contratação","Rg","UF-RG","CPF","CTPS","Endereço","Bairro","Cidade","UF","Cep","Tel","Naturalidade","Cor","E-mail","Deficiencia","CBO","GFIP","Endereço Unidade","Bairro Unidade","Cidade Unidade","Estado Unidade","Cep Unidade","CNPJ Unidade","Inscrição Unidade","Tel1 Unidade","Tel2 Unidade","Tel3 Unidade","Tel4 Unidade","Contato Unid","Cnae","Número Endereço Funcionário","Complemento Endereço Funcionário","Razão Social Unid.","Nome da Mae do Funcionário","Cod.Centro Custo","Dt. Ultima Movimentação","Cod. Unidade contratante","Razão Social","CNPJ","Turno","Dt.Emissão.Cart.Prof","Série CTPS","CNAE 2.0","CNAE Livre","Descrição CNAE Livre","CEI","Função","CNAE 7","Tipo de CNAE Utilizado","Descrição Detalhada do Cargo","Nº endereço Unidade","Complemento endereço Unidade","Regime de Revezamento","Orgão Expedidor do RG","Campo Livre 1","Campo Livre 2","Campo Livre 3","Telefone SMS","Grau de Risco","UF CTPS","Nome Centro Custo","Autoriza SMS","Endereço Cobrança Unidade","Número Endereço Cobrança Unidade","Bairro Cobrança Unidade","Cidade Cobrança Unidade","Estado Cobrança Unidade","Cep Cobrança Unidade","Complemento Endereço Cobrança Unidade","Remuneração Mensal (R$)","Telefone Comercial","Telefone Celular","Data Emissão RG","Código do País de Nascimento","Origem Descrição Detalhada","Unidade Contratante","Escolaridade","Código Categoria (eSocial)","Matrícula RH","Gênero","Nome Social","Tipo de Admissão","Grau de Instrução","Nome do Pai do Funcionário","Tipo de Vínculo","Nome do Turno","Campo Livre 4","CPF Unidade","CAEPF Unidade","Tipo Sanguíneo","Dt. Inicio Periodo Aquisitivo","Dt. Fim Periodo Aquisitivo","CNO Unidade","Desconsiderar para o eSocial","Dt. Validade RG","Desconsiderar Unidade para o eSocial"];
-
-                    const outputData = [
-                        ['Modelo 1'],
-                        modelHeaders,
-                        ...standardizedData.map((emp, index) => {
-                            const row = new Array(modelHeaders.length).fill('');
-                            row[0] = codUnid;
-                            row[1] = nomeUnidade;
-                            row[7] = index + 1; // Cod Funcionário
-                            row[8] = emp.nome || ''; // Nome Funcionário
-                            row[19] = emp.cpf || ''; // CPF
-                            row[9] = emp.dataNascimento || ''; // Dt.Nascimento
-                            row[12] = emp.dataAdmissao || ''; // Dt.Admissão
-                            row[6] = emp.matricula || ''; // Matrícula
-                            row[11] = 'S'; // Situação
-                            row[3] = formatTitleCase(emp.nomeSetor); // Nome Setor
-                            row[5] = formatTitleCase(emp.nomeCargo); // Nome Cargo
-                            row[10] = (emp.sexo && emp.sexo.toUpperCase().startsWith('M')) ? 'M' : (emp.sexo && emp.sexo.toUpperCase().startsWith('F')) ? 'F' : ''; // Sexo
-                            return row;
-                        })
-                    ];
-
-                    const worksheet = XLSX.utils.aoa_to_sheet(outputData);
-                    const workbook = XLSX.utils.book_new();
-                    XLSX.utils.book_append_sheet(workbook, worksheet, "Modelo SOC Gerado");
-                    XLSX.writeFile(workbook, "Modelo_SOC_Gerado.xlsx");
-
                 } catch (e) {
-                     setError({ title: `Erro ao Gerar Modelo`, message: e.message, suggestion: "Verifique se o arquivo da empresa possui todos os dados obrigatórios e tente novamente." });
+                     setError({ title: `Erro ao Gerar Modelo`, message: e.message, suggestion: "Verifique o arquivo da empresa e tente novamente." });
                 } finally {
                     setIsLoading(false);
                 }
@@ -986,10 +1029,20 @@
                         </div>
                     </main>
                     <footer className={`text-center text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mt-8 py-4`}>
-                        <p>Versão 4.3 (React) | Em caso de erro, reportar para robsonmorais@produtiva.srv.br</p>
+                        <p>Versão 4.4 (React) | Em caso de erro, reportar para robsonmorais@produtiva.srv.br</p>
                     </footer>
                     <ChatModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} theme={theme} />
                     <UpdateNotesModal isOpen={isUpdateModalOpen} onClose={handleCloseUpdateModal} theme={theme} />
+                    <MissingDataModal 
+                        isOpen={!!missingDataError} 
+                        onClose={() => setMissingDataError(null)}
+                        onConfirm={() => {
+                            proceedWithGeneration(standardizeData(companyFile.jsonData));
+                            setMissingDataError(null);
+                        }}
+                        missingData={missingDataError}
+                        theme={theme}
+                    />
                 </div>
             );
         }
