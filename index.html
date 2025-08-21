@@ -42,7 +42,7 @@
         const { useState, useCallback, useEffect, useRef } = React;
 
         // A versão da aplicação, usada para controlar a exibição das notas de atualização.
-        const APP_VERSION = "5.1";
+        const APP_VERSION = "5.2";
 
         // --- Ícones em SVG ---
         // Componente para alternar o ícone de tema (sol/lua).
@@ -107,7 +107,7 @@
             </div>
         );
         
-        // NOVO: Componente de seção de resultados expansível.
+        // Componente de seção de resultados expansível.
         const ResultSection = ({ title, count, children, theme, isOpen, onToggle, color = 'blue' }) => {
             if (count === 0) return null;
 
@@ -273,21 +273,29 @@
             nomeCargo: findColumnValue(row, columnMappings.nomeCargo),
             nomeSetor: findColumnValue(row, columnMappings.nomeSetor),
         }));
+        
+        // Converte uma string de data (DD/MM/YYYY) para um objeto Date.
+        const parseDate = (dateString) => {
+            if (!dateString || typeof dateString !== 'string') return null;
+            const parts = dateString.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+            if (!parts) return null;
+            // parts[2] é o mês, que é 0-indexado no objeto Date
+            return new Date(parts[3], parts[2] - 1, parts[1]);
+        };
 
         // --- Componente de Notas de Atualização ---
         const UpdateNotesModal = ({ isOpen, onClose, theme }) => {
              const updateHistory = [
                  {
-                    version: "5.0",
+                    version: "5.1",
                     notes: [
-                        { type: 'improvement', text: 'Melhoria na Lógica de Divergências: A seção de divergências foi redesenhada para maior clareza, mostrando os nomes dos funcionários envolvidos em dados duplicados.' },
+                        { type: 'improvement', text: 'Interface de Resultados Redesenhada: A visualização dos resultados foi simplificada em seções expansíveis para uma análise mais clara e direta, eliminando a navegação por cartões.' },
                     ]
                 },
                  {
-                    version: "4.9",
+                    version: "5.0",
                     notes: [
-                        { type: 'improvement', text: 'Geração de Modelo SOC Aprimorada: Agora preenche automaticamente Cod. Funcionário, Nome Setor e Nome Cargo, com formatação inteligente de texto.' },
-                        { type: 'improvement', text: 'Validação de Dados: Antes de gerar o modelo, o sistema verifica se dados essenciais estão faltando e informa o usuário.' },
+                        { type: 'improvement', text: 'Melhoria na Lógica de Divergências: A seção de divergências foi redesenhada para maior clareza, mostrando os nomes dos funcionários envolvidos em dados duplicados.' },
                     ]
                 },
             ];
@@ -305,7 +313,7 @@
                              <div>
                                 <p className="font-semibold text-blue-400">O que há de novo?</p>
                                 <ul className="list-disc list-inside space-y-1 mt-2">
-                                    <li><strong className="text-green-400">Interface de Resultados Redesenhada:</strong> A visualização dos resultados foi simplificada em seções expansíveis para uma análise mais clara e direta, eliminando a navegação por cartões.</li>
+                                    <li><strong className="text-green-400">Lógica de Inativação Inteligente:</strong> O sistema agora considera a data de admissão para diferenciar funcionários que precisam ser inativados de admissões recentes que ainda não constam na planilha do cliente, evitando erros de interpretação.</li>
                                 </ul>
                             </div>
                             <hr className={theme === 'dark' ? 'border-gray-600' : 'border-gray-300'} />
@@ -377,7 +385,7 @@
             // Estados da aplicação
             const [theme, setTheme] = useState('dark');
             const [mode, setMode] = useState('compare');
-            const [openSections, setOpenSections] = useState({}); // NOVO: Estado para controlar seções abertas
+            const [openSections, setOpenSections] = useState({}); 
             const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
             const [missingDataError, setMissingDataError] = useState(null);
             const [socFile, setSocFile] = useState(null);
@@ -418,7 +426,7 @@
                 setTheme(prevTheme => prevTheme === 'dark' ? 'light' : 'dark');
             };
 
-            // NOVO: Abre/fecha uma seção de resultados.
+            // Abre/fecha uma seção de resultados.
             const toggleSection = (sectionName) => {
                 setOpenSections(prev => ({...prev, [sectionName]: !prev[sectionName]}));
             };
@@ -537,7 +545,7 @@
                     });
 
                     const validSocData = filterValidData(socData, 'Planilha SOC');
-                    const validCompanyData = filterValidData(companyData, 'Planilha da Empresa');
+                    const validCompanyData = filterValidData(companyData, 'Planilha do Cliente');
                     
                     let discrepancies = [], newEmployees = [], socMap = new Map();
                     
@@ -610,8 +618,7 @@
                         }
                     });
                     
-                    // Otimização da lógica de verificação de dados misturados
-                    const allData = [...validSocData.map(d => ({...d, source: 'SOC'})), ...validCompanyData.map(d => ({...d, source: 'Empresa'}))];
+                    const allData = [...validSocData.map(d => ({...d, source: 'SOC'})), ...validCompanyData.map(d => ({...d, source: 'Cliente'}))];
                     const matriculaMap = new Map();
                     const nomeMap = new Map();
 
@@ -652,13 +659,28 @@
                         }
                     });
 
+                    // NOVA LÓGICA DE DATA DE ADMISSÃO
+                    const companyAdmissionDates = validCompanyData
+                        .map(emp => parseDate(normalizeValue(emp.dataAdmissao)))
+                        .filter(date => date && !isNaN(date.getTime()));
 
-                    const removedEmployees = Array.from(socMap.values()).map(emp => ({
-                        ...emp,
-                        status: normalizeValue(emp.dataDemissao) 
-                            ? `Desligado no SOC (em ${normalizeValue(emp.dataDemissao)}) e não consta na planilha do Cliente` 
-                            : 'Ativo no SOC, mas não consta na planilha do Cliente'
-                    }));
+                    const maxCompanyAdmissionDate = companyAdmissionDates.length > 0 ? new Date(Math.max.apply(null, companyAdmissionDates)) : null;
+
+                    const removedEmployees = Array.from(socMap.values()).map(emp => {
+                        const empAdmissionDate = parseDate(normalizeValue(emp.dataAdmissao));
+                        let status = 'Ativo no SOC, mas não consta na planilha do Cliente.';
+                        let recommendation = 'inactivate'; // Padrão: inativar
+
+                        if (maxCompanyAdmissionDate && empAdmissionDate && empAdmissionDate > maxCompanyAdmissionDate) {
+                            status = `Admissão em ${normalizeValue(emp.dataAdmissao)}, que é posterior à última admissão da planilha do Cliente.`;
+                            recommendation = 'verify'; // É uma admissão recente
+                        } else if (normalizeValue(emp.dataDemissao)) {
+                            status = `Desligado no SOC (em ${normalizeValue(emp.dataDemissao)}) e não consta na planilha do Cliente.`;
+                            recommendation = 'none'; // Já está inativo
+                        }
+
+                        return { ...emp, status, recommendation };
+                    });
                     
                     const socActiveCount = validSocData.filter(emp => String(emp.situacao).toUpperCase() === 'S').length;
                     const socInactiveCount = validSocData.length - socActiveCount;
@@ -716,7 +738,12 @@
                     return;
                 }
                 
-                const removedCpfSet = new Set(results.removedEmployees.map(emp => normalizeCpf(emp.cpf)));
+                // ATUALIZADO: Inativa apenas quem tem a recomendação 'inactivate'
+                const employeesToInactivate = results.removedEmployees
+                    .filter(emp => emp.recommendation === 'inactivate')
+                    .map(emp => normalizeCpf(emp.cpf));
+                const removedCpfSet = new Set(employeesToInactivate);
+
                 updatedData.forEach(row => {
                     if (removedCpfSet.has(normalizeCpf(row[cpfHeader]))) {
                         row[situacaoHeader] = 'N';
@@ -856,8 +883,8 @@
                             <>
                                 <Notice theme={theme} />
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                                    <FileInput id="soc-file" label="1. Planilha SOC (Ativos)" onFileSelect={(file) => handleFileSelect(file, 'soc')} fileInfo={socFileInfo} theme={theme} />
-                                    <FileInput id="company-file" label="2. Planilha do Cliente" onFileSelect={(file) => handleFileSelect(file, 'company')} fileInfo={companyFileInfo} theme={theme} />
+                                    <FileInput id="soc-file" label="1. Planilha SOC (Exportação de Ativos)" onFileSelect={(file) => handleFileSelect(file, 'soc')} fileInfo={socFileInfo} theme={theme} />
+                                    <FileInput id="company-file" label="2. Planilha do Cliente (Relação de Ativos)" onFileSelect={(file) => handleFileSelect(file, 'company')} fileInfo={companyFileInfo} theme={theme} />
                                 </div>
                                 <div className="text-center">
                                     <button onClick={handleCompare} disabled={isLoading} className="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:bg-gray-500">
@@ -947,7 +974,7 @@
                                     </ResultSection>
 
                                     <ResultSection
-                                        title="Funcionários a Inativar (não encontrados na planilha do Cliente)"
+                                        title="Funcionários do SOC não encontrados na Planilha do Cliente"
                                         count={results.removedEmployees.length}
                                         isOpen={openSections['removedEmployees']}
                                         onToggle={() => toggleSection('removedEmployees')}
@@ -955,13 +982,26 @@
                                         color="purple"
                                     >
                                         <div className="space-y-2 max-h-96 overflow-auto">
-                                            {results.removedEmployees.map((item, i) => (
-                                                <div key={i} className={`p-4 border ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} rounded-lg`}>
-                                                    <p className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{item.nome || 'Não informado'}</p>
-                                                    <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} font-mono`}>{formatCpf(item.cpf)}</p>
-                                                    <p className={`text-sm ${theme === 'dark' ? 'text-purple-400' : 'text-purple-600'} mt-1`}>{item.status}</p>
-                                                </div>
-                                            ))}
+                                            {results.removedEmployees.map((item, i) => {
+                                                const recommendationText = {
+                                                    inactivate: 'Ação recomendada: Inativar no SOC.',
+                                                    verify: 'Ação recomendada: Verificar se é um novo funcionário.',
+                                                    none: 'Nenhuma ação necessária.'
+                                                };
+                                                const recommendationColor = {
+                                                    inactivate: theme === 'dark' ? 'text-purple-400' : 'text-purple-600',
+                                                    verify: theme === 'dark' ? 'text-blue-400' : 'text-blue-600',
+                                                    none: theme === 'dark' ? 'text-gray-400' : 'text-gray-500',
+                                                };
+                                                return (
+                                                    <div key={i} className={`p-4 border ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} rounded-lg`}>
+                                                        <p className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{item.nome || 'Não informado'}</p>
+                                                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} font-mono`}>{formatCpf(item.cpf)}</p>
+                                                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mt-1`}>{item.status}</p>
+                                                        <p className={`text-sm font-bold ${recommendationColor[item.recommendation]} mt-1`}>{recommendationText[item.recommendation]}</p>
+                                                    </div>
+                                                )
+                                            })}
                                         </div>
                                     </ResultSection>
 
