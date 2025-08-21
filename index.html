@@ -42,7 +42,7 @@
         const { useState, useCallback, useEffect, useRef } = React;
 
         // A versão da aplicação, usada para controlar a exibição das notas de atualização.
-        const APP_VERSION = "5.2";
+        const APP_VERSION = "5.4";
 
         // --- Ícones em SVG ---
         // Componente para alternar o ícone de tema (sol/lua).
@@ -287,15 +287,15 @@
         const UpdateNotesModal = ({ isOpen, onClose, theme }) => {
              const updateHistory = [
                  {
-                    version: "5.1",
+                    version: "5.3",
                     notes: [
-                        { type: 'improvement', text: 'Interface de Resultados Redesenhada: A visualização dos resultados foi simplificada em seções expansíveis para uma análise mais clara e direta, eliminando a navegação por cartões.' },
+                        { type: 'improvement', text: 'Melhorias na Exibição: Adicionado o Código do Funcionário do SOC e numeração nos resultados para facilitar a identificação. A cor da seção de funcionários não encontrados também foi ajustada para melhor visualização.' },
                     ]
                 },
                  {
-                    version: "5.0",
+                    version: "5.2",
                     notes: [
-                        { type: 'improvement', text: 'Melhoria na Lógica de Divergências: A seção de divergências foi redesenhada para maior clareza, mostrando os nomes dos funcionários envolvidos em dados duplicados.' },
+                        { type: 'improvement', text: 'Lógica de Inativação Inteligente: O sistema agora considera a data de admissão para diferenciar funcionários que precisam ser inativados de admissões recentes que ainda não constam na planilha do cliente, evitando erros de interpretação.' },
                     ]
                 },
             ];
@@ -313,7 +313,7 @@
                              <div>
                                 <p className="font-semibold text-blue-400">O que há de novo?</p>
                                 <ul className="list-disc list-inside space-y-1 mt-2">
-                                    <li><strong className="text-green-400">Lógica de Inativação Inteligente:</strong> O sistema agora considera a data de admissão para diferenciar funcionários que precisam ser inativados de admissões recentes que ainda não constam na planilha do cliente, evitando erros de interpretação.</li>
+                                    <li><strong className="text-green-400">Correção na Lógica de Inativação:</strong> Ajustada a lógica de comparação de datas para garantir que funcionários recém-admitidos não sejam incorretamente sugeridos para inativação.</li>
                                 </ul>
                             </div>
                             <hr className={theme === 'dark' ? 'border-gray-600' : 'border-gray-300'} />
@@ -658,8 +658,8 @@
                             });
                         }
                     });
-
-                    // NOVA LÓGICA DE DATA DE ADMISSÃO
+                    
+                    // LÓGICA DE DATA DE ADMISSÃO CORRIGIDA
                     const companyAdmissionDates = validCompanyData
                         .map(emp => parseDate(normalizeValue(emp.dataAdmissao)))
                         .filter(date => date && !isNaN(date.getTime()));
@@ -667,16 +667,24 @@
                     const maxCompanyAdmissionDate = companyAdmissionDates.length > 0 ? new Date(Math.max.apply(null, companyAdmissionDates)) : null;
 
                     const removedEmployees = Array.from(socMap.values()).map(emp => {
-                        const empAdmissionDate = parseDate(normalizeValue(emp.dataAdmissao));
+                        const empAdmissionDateStr = normalizeValue(emp.dataAdmissao);
+                        const empAdmissionDate = parseDate(empAdmissionDateStr);
+
                         let status = 'Ativo no SOC, mas não consta na planilha do Cliente.';
                         let recommendation = 'inactivate'; // Padrão: inativar
 
-                        if (maxCompanyAdmissionDate && empAdmissionDate && empAdmissionDate > maxCompanyAdmissionDate) {
-                            status = `Admissão em ${normalizeValue(emp.dataAdmissao)}, que é posterior à última admissão da planilha do Cliente.`;
-                            recommendation = 'verify'; // É uma admissão recente
-                        } else if (normalizeValue(emp.dataDemissao)) {
+                        if (normalizeValue(emp.dataDemissao)) {
                             status = `Desligado no SOC (em ${normalizeValue(emp.dataDemissao)}) e não consta na planilha do Cliente.`;
                             recommendation = 'none'; // Já está inativo
+                        } else if (!empAdmissionDate) {
+                            status = 'Ativo no SOC, mas a data de admissão não foi encontrada ou está em formato inválido.';
+                            recommendation = 'verify'; // Precisa de verificação manual
+                        } else if (maxCompanyAdmissionDate && empAdmissionDate > maxCompanyAdmissionDate) {
+                            status = `Admissão em ${empAdmissionDateStr}, que é posterior à última admissão da planilha do Cliente.`;
+                            recommendation = 'verify'; // Provavelmente é uma admissão recente
+                        } else {
+                            status = `Admitido em ${empAdmissionDateStr}. Ativo no SOC, mas não consta na planilha do Cliente.`;
+                            recommendation = 'inactivate';
                         }
 
                         return { ...emp, status, recommendation };
@@ -939,7 +947,7 @@
                                         <div className="space-y-4 max-h-96 overflow-auto">
                                             {results.discrepancies.map((item, i) => (
                                                 <div key={i} className={`${theme === 'dark' ? 'bg-gray-900/50' : 'bg-gray-50'} border rounded-lg p-4`}>
-                                                    <p className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{item.title || item.name}</p>
+                                                    <p className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{i + 1}. {item.title || item.name}</p>
                                                     { !item.isInternal && <div className={`flex flex-wrap gap-x-4 text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mb-2`}><span><strong>CPF:</strong> {formatCpf(item.cpf)}</span><span><strong>Matrícula:</strong> {item.matricula}</span></div>}
                                                     {item.type === 'internalStatusConflict' ? (
                                                         <table className="w-full text-xs text-left mt-2 table-fixed">
@@ -979,7 +987,7 @@
                                         isOpen={openSections['removedEmployees']}
                                         onToggle={() => toggleSection('removedEmployees')}
                                         theme={theme}
-                                        color="purple"
+                                        color="yellow"
                                     >
                                         <div className="space-y-2 max-h-96 overflow-auto">
                                             {results.removedEmployees.map((item, i) => {
@@ -989,14 +997,17 @@
                                                     none: 'Nenhuma ação necessária.'
                                                 };
                                                 const recommendationColor = {
-                                                    inactivate: theme === 'dark' ? 'text-purple-400' : 'text-purple-600',
+                                                    inactivate: theme === 'dark' ? 'text-yellow-400' : 'text-yellow-600',
                                                     verify: theme === 'dark' ? 'text-blue-400' : 'text-blue-600',
                                                     none: theme === 'dark' ? 'text-gray-400' : 'text-gray-500',
                                                 };
                                                 return (
                                                     <div key={i} className={`p-4 border ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} rounded-lg`}>
-                                                        <p className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{item.nome || 'Não informado'}</p>
-                                                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} font-mono`}>{formatCpf(item.cpf)}</p>
+                                                        <p className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{i + 1}. {item.nome || 'Não informado'}</p>
+                                                        <div className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'} font-mono flex flex-wrap gap-x-4`}>
+                                                            <span>CPF: {formatCpf(item.cpf)}</span>
+                                                            {item.codFuncionario && <span>Cód. SOC: {item.codFuncionario}</span>}
+                                                        </div>
                                                         <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mt-1`}>{item.status}</p>
                                                         <p className={`text-sm font-bold ${recommendationColor[item.recommendation]} mt-1`}>{recommendationText[item.recommendation]}</p>
                                                     </div>
