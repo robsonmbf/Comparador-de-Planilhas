@@ -41,9 +41,11 @@
     <script type="text/babel">
         const { useState, useCallback, useEffect, useRef } = React;
 
-        const APP_VERSION = "4.9";
+        // A versão da aplicação, usada para controlar a exibição das notas de atualização.
+        const APP_VERSION = "5.0";
 
         // --- Ícones em SVG ---
+        // Componente para alternar o ícone de tema (sol/lua).
         const ThemeToggleIcon = ({ theme }) => (
             theme === 'dark' ? (
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-yellow-400"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
@@ -52,15 +54,13 @@
             )
         );
         
+        // Ícone de lixeira.
         const TrashIcon = () => (
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
         );
 
-        const SendIcon = () => (
-             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-        );
-
         // --- Componentes da UI ---
+        // Cabeçalho da aplicação.
         const Header = ({ theme }) => (
             <div className="text-center mb-8">
                 <h1 className={`text-3xl md:text-4xl font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Verificador de Planilhas</h1>
@@ -68,6 +68,7 @@
             </div>
         );
 
+        // Caixa de avisos e dicas.
         const Notice = ({ theme }) => (
             <div className={`${theme === 'dark' ? 'bg-gray-900 border-blue-500' : 'bg-blue-50 border-blue-400'} border-l-4 p-4 rounded-lg mb-8 text-sm`}>
                 <p className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>Dicas:</p>
@@ -81,6 +82,7 @@
             </div>
         );
 
+        // Componente de input de arquivo.
         const FileInput = ({ id, label, onFileSelect, fileInfo, theme }) => (
             <div>
                 <div className="flex justify-between items-center mb-2">
@@ -97,6 +99,7 @@
             </div>
         );
 
+        // Animação de carregamento.
         const Loader = ({ text, theme }) => (
             <div className="flex justify-center items-center my-6">
                 <div className={`w-10 h-10 border-4 ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'} border-t-blue-500 rounded-full animate-spin`}></div>
@@ -104,6 +107,7 @@
             </div>
         );
 
+        // Cartão de resumo com um único valor.
         const SummaryCard = ({ value, label, color, theme, onClick, isActive }) => (
             <button 
                 onClick={onClick}
@@ -115,6 +119,7 @@
             </button>
         );
         
+        // Cartão de resumo para status (ativos/inativos).
         const StatusSummaryCard = ({ active, inactive, label, theme, onClick, isActive }) => (
             <button 
                 onClick={onClick}
@@ -136,6 +141,7 @@
         );
         
         // --- Mapeamento e Funções Utilitárias ---
+        // Mapeia nomes de colunas padrão para possíveis variações encontradas nas planilhas.
         const columnMappings = {
             cpf: ['CPF'],
             nome: ['Nome Funcionário', 'Nome', 'NOME DO FUNCIONÁRIO', 'NOME COMPLETO'],
@@ -150,6 +156,7 @@
             nomeSetor: ['Setor', 'Nome Setor', 'Departamento']
         };
 
+        // Mapeia abreviações para palavras completas para formatação.
         const abbreviations = {
             'adm': 'Administrativo',
             'aux': 'Auxiliar',
@@ -159,6 +166,7 @@
             'ger': 'Gerais',
         };
 
+        // Encontra o valor de uma coluna em uma linha, testando vários nomes possíveis.
         const findColumnValue = (row, possibleNames) => {
             const lowerCasePossibleNames = possibleNames.map(name => name.toLowerCase());
             for (const key in row) {
@@ -169,6 +177,7 @@
             return undefined;
         };
 
+        // Normaliza um valor de CPF para uma string de 11 dígitos.
         const normalizeCpf = (cpfValue) => {
             if (cpfValue === null || typeof cpfValue === 'undefined') return '';
             let cpfString = String(cpfValue).replace(/\D/g, '');
@@ -179,6 +188,7 @@
             return cpfString;
         };
 
+        // Formata um CPF com pontos e traço.
         const formatCpf = (cpf) => {
             const cpfString = String(cpf || '').replace(/\D/g, '');
             if (cpfString.length === 11) {
@@ -187,6 +197,7 @@
             return cpf;
         }
 
+        // Normaliza um nome (minúsculas, sem acentos, etc.).
         const normalizeName = (nameValue) => {
             if (nameValue === null || typeof nameValue === 'undefined') return '';
             return String(nameValue)
@@ -197,6 +208,7 @@
                 .replace(/z/g, 's'); // Normaliza 'z' para 's' para evitar falsos positivos
         };
 
+        // Normaliza um valor genérico, com tratamento especial para datas.
         const normalizeValue = (value) => {
             if (value === null || typeof value === 'undefined') return '';
             if (value instanceof Date) {
@@ -211,6 +223,7 @@
             return stringValue;
         };
 
+        // Formata uma string para o formato "Title Case" (primeira letra de cada palavra maiúscula).
         const formatTitleCase = (str) => {
             if (!str || typeof str !== 'string') return '';
             const exceptions = ['da', 'de', 'do', 'dos', 'das', 'em'];
@@ -228,6 +241,7 @@
                 .join(' ');
         };
 
+        // Retorna o motivo pelo qual um CPF é inválido.
         const getCpfInvalidityReason = (originalCpf) => {
             const normalized = normalizeCpf(originalCpf);
             if (!normalized) return "CPF em branco";
@@ -235,6 +249,7 @@
             return null;
         };
 
+        // Padroniza os dados de uma planilha para um formato consistente.
         const standardizeData = (data) => data.map(row => ({
             cpf: findColumnValue(row, columnMappings.cpf),
             nome: findColumnValue(row, columnMappings.nome),
@@ -249,117 +264,17 @@
             nomeSetor: findColumnValue(row, columnMappings.nomeSetor),
         }));
 
-        // --- Componente do Chat de IA ---
-        const ChatModal = ({ isOpen, onClose, theme }) => {
-            const [messages, setMessages] = useState([
-                { role: 'assistant', text: 'Olá! Como posso ajudar você a usar o Verificador de Planilhas?' }
-            ]);
-            const [input, setInput] = useState('');
-            const [isLoading, setIsLoading] = useState(false);
-            const messagesEndRef = useRef(null);
-
-            const scrollToBottom = () => {
-                messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-            };
-
-            useEffect(scrollToBottom, [messages]);
-
-            const handleSendMessage = async (e) => {
-                e.preventDefault();
-                if (!input.trim() || isLoading) return;
-
-                const userMessage = { role: 'user', text: input };
-                setMessages(prev => [...prev, userMessage]);
-                setInput('');
-                setIsLoading(true);
-
-                const context = "Você é um assistente prestativo para um aplicativo chamado 'Verificador de Planilhas'. Sua função é ajudar os usuários a entender como usar a ferramenta. A ferramenta compara duas planilhas de funcionários (uma do SOC, outra da empresa) para encontrar divergências, novos funcionários, funcionários removidos e CPFs inválidos. Responda de forma concisa e amigável.";
-                const prompt = `${context}\n\nO usuário pergunta: ${input}`;
-                
-                let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
-                
-                try {
-                    const payload = { contents: chatHistory };
-                    const apiKey = ""; // A CHAVE FOI REMOVIDA POR SEGURANÇA
-                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-                    
-                    if (!apiKey) {
-                        throw new Error("Chave de API não configurada.");
-                    }
-
-                    const response = await fetch(apiUrl, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (!response.ok) {
-                        throw new Error(`API error: ${response.statusText}`);
-                    }
-
-                    const result = await response.json();
-                    
-                    if (result.candidates && result.candidates.length > 0) {
-                        const text = result.candidates[0].content.parts[0].text;
-                        setMessages(prev => [...prev, { role: 'assistant', text }]);
-                    } else {
-                        throw new Error("Resposta da API inválida.");
-                    }
-                } catch (error) {
-                    console.error("Erro ao chamar a API Gemini:", error);
-                    setMessages(prev => [...prev, { role: 'assistant', text: 'Desculpe, a função de ajuda está temporariamente indisponível. A chave de API precisa ser configurada.' }]);
-                } finally {
-                    setIsLoading(false);
-                }
-            };
-
-            if (!isOpen) return null;
-
-            return (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-end justify-end p-4 z-50">
-                    <div className={`w-full max-w-md h-2/3 flex flex-col rounded-lg shadow-2xl ${theme === 'dark' ? 'bg-gray-800 border border-gray-700' : 'bg-white'}`}>
-                        <div className={`p-4 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} flex justify-between items-center`}>
-                            <h3 className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Assistente de Ajuda</h3>
-                            <button onClick={onClose} className={`${theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-800'}`}>&times;</button>
-                        </div>
-                        <div className="flex-1 p-4 overflow-y-auto">
-                            {messages.map((msg, index) => (
-                                <div key={index} className={`flex mb-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                    <div className={`max-w-xs md:max-w-md rounded-lg px-4 py-2 ${msg.role === 'user' ? 'bg-blue-600 text-white' : (theme === 'dark' ? 'bg-gray-700 text-gray-200' : 'bg-gray-200 text-gray-800')}`}>
-                                        {msg.text}
-                                    </div>
-                                </div>
-                            ))}
-                             {isLoading && (
-                                <div className="flex justify-start">
-                                    <div className={`rounded-lg px-4 py-2 ${theme === 'dark' ? 'bg-gray-700 text-gray-200' : 'bg-gray-200 text-gray-800'}`}>
-                                        <span className="animate-pulse">Digitando...</span>
-                                    </div>
-                                </div>
-                            )}
-                            <div ref={messagesEndRef} />
-                        </div>
-                        <form onSubmit={handleSendMessage} className={`p-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} flex items-center`}>
-                            <input
-                                type="text"
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                placeholder="Pergunte algo..."
-                                className={`flex-1 p-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
-                            />
-                            <button type="submit" className="ml-2 p-2 rounded-full bg-blue-600 text-white hover:bg-blue-700 disabled:bg-gray-500">
-                                <SendIcon />
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            );
-        };
-
         // --- Componente de Notas de Atualização ---
         const UpdateNotesModal = ({ isOpen, onClose, theme }) => {
              const updateHistory = [
-                {
+                 {
+                    version: "4.9",
+                    notes: [
+                        { type: 'improvement', text: 'Geração de Modelo SOC Aprimorada: Agora preenche automaticamente Cod. Funcionário, Nome Setor e Nome Cargo, com formatação inteligente de texto.' },
+                        { type: 'improvement', text: 'Validação de Dados: Antes de gerar o modelo, o sistema verifica se dados essenciais estão faltando e informa o usuário.' },
+                    ]
+                },
+                 {
                     version: "4.5",
                     notes: [
                         { type: 'improvement', text: 'Aprimorada a funcionalidade "Gerar Modelo SOC" para seguir estritamente o layout oficial do Modelo 1.' },
@@ -372,22 +287,6 @@
                         { type: 'improvement', text: 'Correção na quebra de linha dos CPFs nas tabelas.' },
                     ]
                 },
-                {
-                    version: "4.1",
-                    notes: [
-                        { type: 'feature', text: 'Modo "Gerar Modelo SOC": Carregue a planilha da empresa para gerar um "Modelo 1" pronto para importação.' },
-                        { type: 'improvement', text: 'Detecção de Dados Misturados: Identifica CPFs/Matrículas e Nomes/CPFs conflitantes.' },
-                        { type: 'improvement', text: 'Layout de "Novos Funcionários" agora mostra a lista detalhada completa.' },
-                         { type: 'improvement', text: 'Nomenclatura dos cabeçalhos de divergência atualizada para maior clareza.' },
-                    ]
-                },
-                {
-                    version: "4.0",
-                    notes: [
-                        { type: 'feature', text: 'Adicionado histórico de atualizações nesta janela.' },
-                        { type: 'improvement', text: 'Ajuste no layout para se adaptar ao conteúdo e melhorias na barra de rolagem das tabelas.' },
-                    ]
-                }
             ];
 
             if (!isOpen) return null;
@@ -401,10 +300,9 @@
                         </div>
                         <div className="p-6 space-y-4 text-sm max-h-[70vh] overflow-y-auto">
                              <div>
-                                <p className="font-semibold text-green-400">Melhorias nesta versão:</p>
+                                <p className="font-semibold text-blue-400">O que há de novo?</p>
                                 <ul className="list-disc list-inside space-y-1 mt-2">
-                                    <li>**Geração de Modelo SOC Aprimorada:** Agora preenche automaticamente Cod. Funcionário, Nome Setor e Nome Cargo, com formatação inteligente de texto.</li>
-                                    <li>**Validação de Dados:** Antes de gerar o modelo, o sistema verifica se dados essenciais estão faltando e informa o usuário.</li>
+                                    <li><strong className="text-green-400">Melhoria na Lógica de Divergências:</strong> A seção de divergências foi redesenhada para maior clareza, mostrando os nomes dos funcionários envolvidos em dados duplicados.</li>
                                 </ul>
                             </div>
                             <hr className={theme === 'dark' ? 'border-gray-600' : 'border-gray-300'} />
@@ -435,6 +333,7 @@
             )
         };
         
+        // Modal para avisar sobre dados obrigatórios faltando.
         const MissingDataModal = ({ isOpen, onClose, onConfirm, missingData, theme }) => {
             if (!isOpen) return null;
 
@@ -472,10 +371,10 @@
 
         // --- Componente Principal ---
         function App() {
+            // Estados da aplicação
             const [theme, setTheme] = useState('dark');
             const [mode, setMode] = useState('compare');
             const [activeDetail, setActiveDetail] = useState(null);
-            const [isChatOpen, setIsChatOpen] = useState(false);
             const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
             const [missingDataError, setMissingDataError] = useState(null);
             const [socFile, setSocFile] = useState(null);
@@ -492,6 +391,7 @@
             const [dataForIncompleteGeneration, setDataForIncompleteGeneration] = useState(null);
 
 
+            // Efeito para verificar a versão e mostrar o modal de atualização.
             useEffect(() => {
                 const seenVersion = localStorage.getItem('appVersion');
                 if (seenVersion !== APP_VERSION) {
@@ -499,23 +399,28 @@
                 }
             }, []);
 
+            // Fecha o modal de atualização e salva a versão atual no localStorage.
             const handleCloseUpdateModal = () => {
                 localStorage.setItem('appVersion', APP_VERSION);
                 setIsUpdateModalOpen(false);
             };
 
+            // Efeito para aplicar o tema (dark/light) no body do documento.
             useEffect(() => {
                 document.body.className = theme === 'dark' ? 'bg-gray-800 text-gray-200' : 'bg-gray-100 text-gray-800';
             }, [theme]);
             
+            // Alterna entre os temas dark e light.
             const toggleTheme = () => {
                 setTheme(prevTheme => prevTheme === 'dark' ? 'light' : 'dark');
             };
 
+            // Mostra ou esconde a visão de detalhes de um resultado.
             const handleDetailToggle = (detail) => {
                 setActiveDetail(prevDetail => prevDetail === detail ? null : detail);
             };
 
+            // Lê e processa uma planilha, identificando o cabeçalho e convertendo para JSON.
             const readAndProcessSheet = (file) => {
                 return new Promise((resolve, reject) => {
                     if (!file) {
@@ -574,6 +479,7 @@
                 });
             };
 
+            // Manipula a seleção de um arquivo, lendo-o e atualizando o estado.
             const handleFileSelect = async (file, fileType) => {
                 const setFile = fileType === 'soc' ? setSocFile : setCompanyFile;
                 const setInfo = fileType === 'soc' ? setSocFileInfo : setCompanyFileInfo;
@@ -595,6 +501,7 @@
                 }
             };
             
+            // Executa a lógica principal de comparação entre as duas planilhas.
             const handleCompare = useCallback(async () => {
                 setActiveDetail(null);
                 if (!socFile || !companyFile) {
@@ -617,10 +524,10 @@
                     const companyData = standardizeData(companyFileData.jsonData);
                     
                     const invalidCpfs = [];
-                    const filterValidData = (data, source) => data.filter(row => {
+                    const filterValidData = (data, source) => data.filter((row, index) => {
                         const reason = getCpfInvalidityReason(row.cpf);
                         if (reason) {
-                            invalidCpfs.push({ name: row.nome || 'Não informado', cpf: normalizeValue(row.cpf) || 'Vazio', source, reason });
+                            invalidCpfs.push({ name: row.nome || `Linha ${index + 2}`, cpf: normalizeValue(row.cpf) || 'Vazio', source, reason });
                             return false;
                         }
                         return true;
@@ -635,9 +542,7 @@
                     const socDuplicates = new Map();
                     validSocData.forEach(row => {
                         const cpf = normalizeCpf(row.cpf);
-                        if (!socDuplicates.has(cpf)) {
-                            socDuplicates.set(cpf, []);
-                        }
+                        if (!socDuplicates.has(cpf)) socDuplicates.set(cpf, []);
                         socDuplicates.get(cpf).push(row);
                     });
 
@@ -702,8 +607,8 @@
                         }
                     });
                     
-                    // Lógica de verificação de mistura de dados
-                    const allData = [...validSocData, ...validCompanyData];
+                    // Otimização da lógica de verificação de dados misturados
+                    const allData = [...validSocData.map(d => ({...d, source: 'SOC'})), ...validCompanyData.map(d => ({...d, source: 'Empresa'}))];
                     const matriculaMap = new Map();
                     const nomeMap = new Map();
 
@@ -712,20 +617,35 @@
                         const cpf = normalizeCpf(emp.cpf);
                         const nome = normalizeName(emp.nome);
 
-                        if(matricula) {
-                            if (matriculaMap.has(matricula) && matriculaMap.get(matricula).cpf !== cpf) {
-                                discrepancies.push({ name: `Matrícula ${matricula} duplicada`, isInternal: true, type: 'mixedData', details: [{ field: 'CPF no SOC', value: matriculaMap.get(matricula).cpf }, { field: 'CPF na Empresa', value: cpf }] });
-                            } else if (!matriculaMap.has(matricula)) {
-                                matriculaMap.set(matricula, { cpf, nome: emp.nome });
-                            }
+                        if (matricula) {
+                            if (!matriculaMap.has(matricula)) matriculaMap.set(matricula, []);
+                            matriculaMap.get(matricula).push({ cpf, nome: emp.nome, source: emp.source });
                         }
-                        
-                        if(nome) {
-                            if (nomeMap.has(nome) && nomeMap.get(nome) !== cpf) {
-                                discrepancies.push({ name: `Nome '${emp.nome}' duplicado`, isInternal: true, type: 'mixedData', details: [{ field: 'CPF Anterior', value: nomeMap.get(nome) }, { field: 'CPF Atual', value: cpf }] });
-                            } else if (!nomeMap.has(nome)) {
-                                nomeMap.set(nome, cpf);
-                            }
+                        if (nome) {
+                            if (!nomeMap.has(nome)) nomeMap.set(nome, []);
+                            nomeMap.get(nome).push({ cpf, nome: emp.nome, source: emp.source });
+                        }
+                    });
+
+                    matriculaMap.forEach((employees, matricula) => {
+                        const uniqueCpfs = new Set(employees.map(e => e.cpf));
+                        if (uniqueCpfs.size > 1) {
+                            discrepancies.push({
+                                title: `Matrícula '${matricula}' associada a múltiplos CPFs`,
+                                type: 'mixedData',
+                                details: employees
+                            });
+                        }
+                    });
+
+                    nomeMap.forEach((employees, nome) => {
+                        const uniqueCpfs = new Set(employees.map(e => e.cpf));
+                        if (uniqueCpfs.size > 1) {
+                            discrepancies.push({
+                                title: `Nome '${employees[0].nome}' associado a múltiplos CPFs`,
+                                type: 'mixedData',
+                                details: employees
+                            });
                         }
                     });
 
@@ -759,6 +679,7 @@
                 }
             }, [socFile, companyFile]);
 
+            // Limpa todos os dados e resultados da interface.
             const handleClear = () => {
                 setSocFile(null);
                 setCompanyFile(null);
@@ -774,9 +695,10 @@
                 if(document.getElementById('company-file-generate')) document.getElementById('company-file-generate').value = '';
             };
             
+            // Exporta uma nova planilha SOC com as atualizações (novos funcionários e inativações).
             const handleExport = () => {
                 if (!originalSocData || !results) {
-                    alert("Não há dados para exportar.");
+                    console.error("Não há dados para exportar.");
                     return;
                 }
 
@@ -787,7 +709,7 @@
                 const cpfHeader = columnMap.cpf;
 
                 if (!situacaoHeader || !cpfHeader) {
-                    alert("Não foi possível encontrar as colunas 'Situação' ou 'CPF' na planilha SOC para atualizar.");
+                    console.error("Não foi possível encontrar as colunas 'Situação' ou 'CPF' na planilha SOC para atualizar.");
                     return;
                 }
                 
@@ -821,6 +743,7 @@
                 XLSX.writeFile(workbook, "Planilha_SOC_Atualizada.xlsx");
             };
 
+            // Gera o arquivo final do Modelo 1.
             const proceedWithGeneration = (data) => {
                 const modelHeaders = ["Cod.Unid","Nome Unidade","Cod.Setor","Nome Setor","Cod.Cargo","Nome Cargo","Matrícula","Cod Funcionário","Nome Funcionário","Dt.Nascimento","Sexo","Situação","Dt.Admissão","Dt.Demissão","Estado Civil","Pis/Pasep","Contratação","Rg","UF-RG","CPF","CTPS","Endereço","Bairro","Cidade","UF","Cep","Tel","Naturalidade","Cor","E-mail","Deficiencia","CBO","GFIP","Endereço Unidade","Bairro Unidade","Cidade Unidade","Estado Unidade","Cep Unidade","CNPJ Unidade","Inscrição Unidade","Tel1 Unidade","Tel2 Unidade","Tel3 Unidade","Tel4 Unidade","Contato Unid","Cnae","Número Endereço Funcionário","Complemento Endereço Funcionário","Razão Social Unid.","Nome da Mae do Funcionário","Cod.Centro Custo","Dt. Ultima Movimentação","Cod. Unidade contratante","Razão Social","CNPJ","Turno","Dt.Emissão.Cart.Prof","Série CTPS","CNAE 2.0","CNAE Livre","Descrição CNAE Livre","CEI","Função","CNAE 7","Tipo de CNAE Utilizado","Descrição Detalhada do Cargo","Nº endereço Unidade","Complemento endereço Unidade","Regime de Revezamento","Orgão Expedidor do RG","Campo Livre 1","Campo Livre 2","Campo Livre 3","Telefone SMS","Grau de Risco","UF CTPS","Nome Centro Custo","Autoriza SMS","Endereço Cobrança Unidade","Número Endereço Cobrança Unidade","Bairro Cobrança Unidade","Cidade Cobrança Unidade","Estado Cobrança Unidade","Cep Cobrança Unidade","Complemento Endereço Cobrança Unidade","Remuneração Mensal (R$)","Telefone Comercial","Telefone Celular","Data Emissão RG","Código do País de Nascimento","Origem Descrição Detalhada","Unidade Contratante","Escolaridade","Código Categoria (eSocial)","Matrícula RH","Gênero","Nome Social","Tipo de Admissão","Grau de Instrução","Nome do Pai do Funcionário","Tipo de Vínculo","Nome do Turno","Campo Livre 4","CPF Unidade","CAEPF Unidade","Tipo Sanguíneo","Dt. Inicio Periodo Aquisitivo","Dt. Fim Periodo Aquisitivo","CNO Unidade","Desconsiderar para o eSocial","Dt. Validade RG","Desconsiderar Unidade para o eSocial"];
                 const outputData = [
@@ -850,6 +773,7 @@
                 XLSX.writeFile(workbook, "Modelo_SOC_Gerado.xlsx");
             };
 
+            // Inicia o processo de geração do Modelo 1, incluindo a validação de dados.
             const handleGenerateModel = async () => {
                 if (!companyFile || !codUnid || !nomeUnidade) {
                     setError({ title: 'Dados Faltando', message: 'Por favor, preencha o Código e Nome da Unidade e selecione a planilha da empresa.' });
@@ -880,6 +804,7 @@
                 }
             };
 
+            // Componente para renderizar uma lista de funcionários em uma tabela.
             const EmployeeList = ({ employees, theme }) => (
                 <div className="overflow-auto max-h-96">
                     <table className="w-full text-sm text-left">
@@ -909,6 +834,7 @@
                 </div>
             );
             
+            // Renderiza a visão detalhada para a categoria de resultado selecionada.
             const renderDetailView = () => {
                 if (!results) return null;
 
@@ -919,8 +845,8 @@
                         <div className="space-y-4 max-h-96 overflow-auto">
                             {results.discrepancies.map((item, i) => (
                                 <div key={i} className={`${theme === 'dark' ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'} border rounded-lg p-4`}>
-                                    <p className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{item.name}</p>
-                                    <div className={`flex flex-wrap gap-x-4 text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mb-2`}><span><strong>CPF:</strong> {formatCpf(item.cpf)}</span>{ !item.isInternal && <span><strong>Matrícula:</strong> {item.matricula}</span>}</div>
+                                    <p className={`font-bold ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>{item.title || item.name}</p>
+                                    { !item.isInternal && <div className={`flex flex-wrap gap-x-4 text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mb-2`}><span><strong>CPF:</strong> {formatCpf(item.cpf)}</span><span><strong>Matrícula:</strong> {item.matricula}</span></div>}
                                     {item.type === 'internalStatusConflict' ? (
                                         <table className="w-full text-xs text-left mt-2 table-fixed">
                                             <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-100 text-gray-700'}`}><tr><th className="px-3 py-1 w-1/2">Cod Funcionário</th><th className="px-3 py-1 w-1/2">Situação no SOC</th></tr></thead>
@@ -928,8 +854,8 @@
                                         </table>
                                     ) : item.type === 'mixedData' ? (
                                         <table className="w-full text-xs text-left mt-2 table-fixed">
-                                             <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-100 text-gray-700'}`}><tr><th className="px-3 py-1 w-1/2">Dado</th><th className="px-3 py-1 w-1/2">Valor Encontrado</th></tr></thead>
-                                             <tbody>{item.details.map((d, j) => <tr key={j} className={`border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} last:border-b-0`}><td className="px-3 py-1 font-medium">{d.field}</td><td className={`px-3 py-1 ${theme === 'dark' ? 'bg-red-900/40 text-red-300' : 'bg-red-50 text-red-700'}`}>{d.value}</td></tr>)}</tbody>
+                                             <thead className={`${theme === 'dark' ? 'bg-gray-600 text-gray-300' : 'bg-gray-100 text-gray-700'}`}><tr><th className="px-3 py-1">Nome</th><th className="px-3 py-1">CPF</th><th className="px-3 py-1">Origem</th></tr></thead>
+                                             <tbody>{item.details.map((d, j) => <tr key={j} className={`border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} last:border-b-0`}><td className="px-3 py-1">{d.nome}</td><td className={`px-3 py-1 font-mono ${theme === 'dark' ? 'bg-red-900/40 text-red-300' : 'bg-red-50 text-red-700'}`}>{formatCpf(d.cpf)}</td><td className="px-3 py-1">{d.source}</td></tr>)}</tbody>
                                         </table>
                                     ) : (
                                         <table className="w-full text-xs text-left mt-2 table-fixed">
@@ -974,12 +900,10 @@
                 );
             };
 
+            // Renderização principal do componente App.
             return (
                 <div className="min-h-screen flex flex-col items-center p-4">
                     <main className={`relative ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-white border-gray-200'} rounded-2xl shadow-xl p-6 md:p-10 w-full max-w-6xl border`}>
-                        <button onClick={() => setIsChatOpen(true)} className={`absolute top-4 left-4 p-2 rounded-lg text-sm font-semibold ${theme === 'dark' ? 'bg-gray-600 text-gray-200 hover:bg-gray-500' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'} transition-colors`}>
-                            Ajuda IA
-                        </button>
                         <button onClick={toggleTheme} className="absolute top-4 right-4 p-2 rounded-full bg-gray-500/20 hover:bg-gray-500/40 transition-colors">
                             <ThemeToggleIcon theme={theme} />
                         </button>
@@ -1064,9 +988,8 @@
                         </div>
                     </main>
                     <footer className={`text-center text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mt-8 py-4`}>
-                        <p>Versão 4.8 (React) | Em caso de erro, reportar para robsonmorais@produtiva.srv.br</p>
+                        <p>Versão {APP_VERSION} (React) | Em caso de erro, reportar para robsonmorais@produtiva.srv.br</p>
                     </footer>
-                    <ChatModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} theme={theme} />
                     <UpdateNotesModal isOpen={isUpdateModalOpen} onClose={handleCloseUpdateModal} theme={theme} />
                     <MissingDataModal 
                         isOpen={!!missingDataError} 
