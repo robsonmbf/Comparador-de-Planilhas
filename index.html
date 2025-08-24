@@ -36,7 +36,7 @@
         const { useState, useCallback, useEffect, useRef } = React;
 
         // A versão da aplicação, usada para controlar a exibição das notas de atualização.
-        const APP_VERSION = "6.0";
+        const APP_VERSION = "6.1";
 
         // --- Ícones em SVG ---
         const ThemeToggleIcon = ({ theme }) => (
@@ -195,6 +195,17 @@
             }
             return stringValue;
         };
+        
+        const formatTitleCase = (str) => {
+            if (!str || typeof str !== 'string') return '';
+            const exceptions = ['da', 'de', 'do', 'dos', 'das', 'em'];
+            let formattedStr = str.toLowerCase().replace(/\s+/g, ' ').trim();
+            formattedStr = [...new Set(formattedStr.split(' '))].join(' ');
+            return formattedStr
+                .split(' ')
+                .map(word => exceptions.includes(word) ? word : word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ');
+        };
 
         const getCpfInvalidityReason = (originalCpf) => {
             const normalized = normalizeCpf(originalCpf);
@@ -226,13 +237,7 @@
 
         // --- Novos Componentes ---
         const UpdateNotesModal = ({ isOpen, onClose, theme }) => {
-            const updateHistory = [
-                { version: "5.4", notes: [{ type: 'fix', text: 'Correção na Lógica de Inativação: Ajustada a lógica de comparação de datas para garantir que funcionários recém-admitidos não sejam incorretamente sugeridos para inativação.' }] },
-                { version: "5.3", notes: [{ type: 'improvement', text: 'Melhorias na Exibição: Adicionado o Código do Funcionário do SOC e numeração nos resultados para facilitar a identificação.' }] },
-            ];
-
             if (!isOpen) return null;
-
             return (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                     <div className={`w-full max-w-lg rounded-lg shadow-2xl ${theme === 'dark' ? 'bg-gray-800 border border-gray-700' : 'bg-white'}`}>
@@ -244,27 +249,9 @@
                             <div>
                                 <p className="font-semibold text-blue-400">O que há de novo?</p>
                                 <ul className="list-disc list-inside space-y-2 mt-2">
-                                    <li><strong className="text-green-400">Mapeamento de Colunas Interativo:</strong> Agora você pode associar as colunas da sua planilha com os campos do sistema, oferecendo total flexibilidade de layout.</li>
-                                    <li><strong className="text-green-400">Dashboard de Resultados:</strong> Um novo painel visual com gráficos e cartões resume a análise, permitindo uma compreensão rápida dos dados.</li>
-                                    <li><strong className="text-green-400">Edição de Dados na Tabela:</strong> Corrija informações diretamente na tabela de divergências antes de exportar, agilizando o fluxo de trabalho.</li>
+                                    <li><strong className="text-green-400">Mapeamento Manual de Colunas:</strong> Adicionada a opção de digitar o nome da coluna manualmente caso não esteja na lista.</li>
+                                    <li><strong className="text-green-400">Funcionalidade "Gerar Modelo SOC" Restaurada:</strong> A ferramenta para gerar um novo modelo de importação a partir de uma planilha do cliente está de volta e totalmente funcional.</li>
                                 </ul>
-                            </div>
-                            <hr className={theme === 'dark' ? 'border-gray-600' : 'border-gray-300'} />
-                            <div>
-                                <h4 className={`font-bold mb-2 ${theme === 'dark' ? 'text-gray-200' : 'text-gray-800'}`}>Histórico de Atualizações</h4>
-                                {updateHistory.map(update => (
-                                    <div key={update.version} className="mb-4">
-                                        <p className={`font-semibold ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>Versão {update.version}</p>
-                                        <ul className="list-disc list-inside space-y-1 mt-1 pl-2">
-                                            {update.notes.map((note, index) => (
-                                                <li key={index}>
-                                                    <span className={`font-medium ${note.type === 'fix' ? 'text-yellow-400' : 'text-blue-400'}`}>{note.type === 'fix' ? 'Correção: ' : 'Melhoria: '}</span>
-                                                    {note.text}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-                                ))}
                             </div>
                         </div>
                         <div className={`p-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} text-right`}>
@@ -292,29 +279,38 @@
 
             if (!isOpen) return null;
 
-            const handleSelectChange = (systemKey, headerName) => {
-                setMapping(prev => ({ ...prev, [systemKey]: headerName }));
+            const handleInputChange = (systemKey, value) => {
+                setMapping(prev => ({ ...prev, [systemKey]: value }));
             };
 
             return (
                 <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50">
-                    <div className={`w-full max-w-2xl rounded-lg shadow-2xl ${theme === 'dark' ? 'bg-gray-800 border border-gray-700' : 'bg-white'}`}>
+                    <div className={`w-full max-w-3xl rounded-lg shadow-2xl ${theme === 'dark' ? 'bg-gray-800 border border-gray-700' : 'bg-white'}`}>
                         <div className={`p-4 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
                             <h3 className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Mapear Colunas</h3>
-                            <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Associe os campos do sistema com as colunas do seu arquivo: <strong>{fileName}</strong></p>
+                            <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>Associe ou digite o nome da coluna do seu arquivo: <strong>{fileName}</strong></p>
                         </div>
-                        <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto">
+                        <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 max-h-[60vh] overflow-y-auto">
                             {Object.entries(systemColumns).map(([key, { label }]) => (
                                 <div key={key}>
                                     <label className={`block text-sm font-medium mb-1 ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'}`}>{label}</label>
-                                    <select
-                                        value={mapping[key] || ''}
-                                        onChange={(e) => handleSelectChange(key, e.target.value)}
-                                        className={`w-full p-2 rounded-lg border text-sm ${theme === 'dark' ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300 text-black'}`}
-                                    >
-                                        <option value="">-- Selecione uma coluna --</option>
-                                        {fileHeaders.map(header => <option key={header} value={header}>{header}</option>)}
-                                    </select>
+                                    <div className="flex items-center space-x-2">
+                                        <select
+                                            value={fileHeaders.includes(mapping[key]) ? mapping[key] : ''}
+                                            onChange={(e) => handleInputChange(key, e.target.value)}
+                                            className={`w-1/2 p-2 rounded-lg border text-sm ${theme === 'dark' ? 'bg-gray-600 border-gray-500 text-white' : 'bg-white border-gray-300 text-black'}`}
+                                        >
+                                            <option value="">-- Selecione --</option>
+                                            {fileHeaders.map(header => <option key={header} value={header}>{header}</option>)}
+                                        </select>
+                                        <input
+                                            type="text"
+                                            value={mapping[key] || ''}
+                                            onChange={(e) => handleInputChange(key, e.target.value)}
+                                            placeholder="Ou digite aqui"
+                                            className={`w-1/2 p-2 rounded-lg border text-sm ${theme === 'dark' ? 'bg-gray-700 border-gray-500 text-white' : 'bg-gray-50 border-gray-300 text-black'}`}
+                                        />
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -327,6 +323,41 @@
             );
         };
         
+        const MissingDataModal = ({ isOpen, onClose, onConfirm, missingData, theme }) => {
+            if (!isOpen) return null;
+
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className={`w-full max-w-xl rounded-lg shadow-2xl ${theme === 'dark' ? 'bg-gray-800 border border-gray-700' : 'bg-white'}`}>
+                        <div className={`p-4 border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'}`}>
+                            <h3 className={`font-bold text-lg ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>Dados Obrigatórios Faltando</h3>
+                        </div>
+                        <div className="p-6 text-sm">
+                            <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} mb-4`}>
+                                Foram encontrados funcionários com informações essenciais faltando. Você pode cancelar para corrigir a planilha original ou gerar um modelo incompleto.
+                            </p>
+                            <div className={`border rounded-lg p-2 max-h-64 overflow-y-auto ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'}`}>
+                                {missingData.map(emp => (
+                                    <div key={emp.index} className={`p-2 ${theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} rounded`}>
+                                        <p className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-black'}`}>Linha {emp.index}: {emp.nome || 'Nome não encontrado'}</p>
+                                        <p className="text-red-500 text-xs">Faltando: {emp.missing.join(', ')}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        <div className={`p-4 border-t ${theme === 'dark' ? 'border-gray-700' : 'border-gray-200'} flex justify-end space-x-4`}>
+                            <button onClick={onClose} className={`font-bold py-2 px-4 rounded-lg transition-colors ${theme === 'dark' ? 'bg-gray-600 hover:bg-gray-500 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'}`}>
+                                Cancelar
+                            </button>
+                            <button onClick={onConfirm} className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors">
+                                Gerar Mesmo Assim
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         const StatCard = ({ title, value, color, theme }) => {
             const colorClasses = {
                 red: theme === 'dark' ? 'bg-red-900/50 border-red-700' : 'bg-red-50 border-red-400',
@@ -393,7 +424,11 @@
             const [socFileInfo, setSocFileInfo] = useState(null);
             const [companyFileInfo, setCompanyFileInfo] = useState(null);
             
-            // Novos estados para mapeamento
+            const [codUnid, setCodUnid] = useState('');
+            const [nomeUnidade, setNomeUnidade] = useState('');
+            const [missingDataError, setMissingDataError] = useState(null);
+            const [dataForIncompleteGeneration, setDataForIncompleteGeneration] = useState(null);
+            
             const [mappingModal, setMappingModal] = useState({ isOpen: false, fileType: null, headers: [], file: null });
             const [socColumnMap, setSocColumnMap] = useState(null);
             const [companyColumnMap, setCompanyColumnMap] = useState(null);
@@ -402,7 +437,6 @@
             const [error, setError] = useState(null);
             const [results, setResults] = useState(null);
             
-            // Efeito para verificar a versão e mostrar o modal de atualização.
             useEffect(() => {
                 const seenVersion = localStorage.getItem('appVersion');
                 if (seenVersion !== APP_VERSION) {
@@ -415,7 +449,6 @@
                 setIsUpdateModalOpen(false);
             };
 
-            // Efeito para aplicar o tema (dark/light) no body do documento.
             useEffect(() => {
                 document.body.className = theme === 'dark' ? 'bg-gray-800 text-gray-200' : 'bg-gray-100 text-gray-800';
             }, [theme]);
@@ -428,7 +461,7 @@
                 setOpenSections(prev => ({...prev, [sectionName]: !prev[sectionName]}));
             };
 
-            const readSheetHeaders = (file) => {
+            const readSheetData = (file) => {
                 return new Promise((resolve, reject) => {
                     const reader = new FileReader();
                     reader.onload = (event) => {
@@ -448,7 +481,7 @@
                                 }
                             }
 
-                            if (headerIndex === -1) throw new Error("Cabeçalho não encontrado.");
+                            if (headerIndex === -1) throw new Error("Cabeçalho não encontrado. Verifique se a planilha contém colunas como CPF, Nome, etc.");
                             
                             const headers = dataAsArray[headerIndex].map(h => String(h).trim()).filter(Boolean);
                             const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: headers, range: headerIndex + 1 });
@@ -477,7 +510,7 @@
 
                 setInfo({ message: 'Lendo...' });
                 try {
-                    const { headers } = await readSheetHeaders(file);
+                    const { headers } = await readSheetData(file);
                     setMappingModal({ isOpen: true, fileType, headers, file });
                 } catch (error) {
                     setInfo({ message: 'Erro ao ler cabeçalho', error: true });
@@ -494,7 +527,7 @@
                 setMappingModal({ isOpen: false, fileType: null, headers: [], file: null });
 
                 try {
-                    const { jsonData } = await readSheetHeaders(file);
+                    const { jsonData } = await readSheetData(file);
                     const validData = jsonData.filter(row => getCpfInvalidityReason(findColumnValue(row, map, 'cpf')) === null);
                     setInfo({ message: `${validData.length} funcionários` });
                 } catch (error) {
@@ -515,13 +548,12 @@
                 setResults(null);
 
                 try {
-                    const socFileData = await readSheetHeaders(socFile);
-                    const companyFileData = await readSheetHeaders(companyFile);
+                    const socFileData = await readSheetData(socFile);
+                    const companyFileData = await readSheetData(companyFile);
                     
                     const socData = standardizeData(socFileData.jsonData, socColumnMap);
                     const companyData = standardizeData(companyFileData.jsonData, companyColumnMap);
                     
-                    // ... (O resto da lógica de comparação permanece a mesma)
                     const invalidCpfs = [];
                     const filterValidData = (data, source) => data.filter((row, index) => {
                         const reason = getCpfInvalidityReason(row.cpf);
@@ -633,28 +665,28 @@
                 setError(null);
                 setIsLoading(false);
                 setOpenSections({});
+                setCodUnid('');
+                setNomeUnidade('');
                 if (document.getElementById('soc-file')) document.getElementById('soc-file').value = '';
                 if (document.getElementById('company-file')) document.getElementById('company-file').value = '';
+                if (document.getElementById('company-file-generate')) document.getElementById('company-file-generate').value = '';
             };
             
-            // Lógica para edição na tabela
             const handleDiscrepancyChange = (discrepancyIndex, detailIndex, newValue) => {
                 const newResults = { ...results };
                 newResults.discrepancies[discrepancyIndex].details[detailIndex].companyValue = newValue;
                 setResults(newResults);
             };
             
-            // Lógica de exportação (precisa ser adaptada para usar os dados editados)
             const handleExport = async () => {
-                 if (!results || !socFile) {
+                 if (!results || !socFile || !socColumnMap) {
                     console.error("Não há dados para exportar.");
                     return;
                 }
 
-                const { jsonData: originalSocJson } = await readSheetHeaders(socFile);
+                const { jsonData: originalSocJson, headers: originalSocHeaders } = await readSheetData(socFile);
                 let updatedData = JSON.parse(JSON.stringify(originalSocJson));
 
-                // 1. Aplicar inativações
                 const employeesToInactivate = new Set(
                     results.removedEmployees
                         .filter(emp => emp.recommendation === 'inactivate')
@@ -663,12 +695,11 @@
                 
                 updatedData.forEach(row => {
                     const cpf = normalizeCpf(findColumnValue(row, socColumnMap, 'cpf'));
-                    if (employeesToInactivate.has(cpf)) {
+                    if (employeesToInactivate.has(cpf) && socColumnMap.situacao) {
                         row[socColumnMap.situacao] = 'N';
                     }
                 });
 
-                // 2. Aplicar correções das divergências
                 const correctionsMap = new Map();
                 results.discrepancies.forEach(disc => {
                     const cpf = normalizeCpf(disc.cpf);
@@ -694,23 +725,81 @@
                     }
                 });
 
-                // 3. Adicionar novos funcionários
                 results.newEmployees.forEach(newEmp => {
                     const newRow = {};
+                    originalSocHeaders.forEach(header => newRow[header] = ''); // Garante todas as colunas originais
                     for (const key in socColumnMap) {
-                        if (socColumnMap[key]) {
-                            newRow[socColumnMap[key]] = newEmp[key] || '';
+                        if (socColumnMap[key] && newEmp[key] !== undefined) {
+                            newRow[socColumnMap[key]] = newEmp[key];
                         }
                     }
-                    newRow[socColumnMap.situacao] = 'S';
+                    if(socColumnMap.situacao) newRow[socColumnMap.situacao] = 'S';
                     updatedData.push(newRow);
                 });
                 
-                const finalHeaders = Object.values(socColumnMap).filter(Boolean);
-                const worksheet = XLSX.utils.json_to_sheet(updatedData, { header: finalHeaders });
+                const worksheet = XLSX.utils.json_to_sheet(updatedData, { header: originalSocHeaders });
                 const workbook = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(workbook, worksheet, "Funcionários Atualizados");
                 XLSX.writeFile(workbook, "Planilha_SOC_Atualizada.xlsx");
+            };
+            
+            const proceedWithGeneration = (data) => {
+                const modelHeaders = ["Cod.Unid","Nome Unidade","Cod.Setor","Nome Setor","Cod.Cargo","Nome Cargo","Matrícula","Cod Funcionário","Nome Funcionário","Dt.Nascimento","Sexo","Situação","Dt.Admissão","Dt.Demissão","Estado Civil","Pis/Pasep","Contratação","Rg","UF-RG","CPF","CTPS","Endereço","Bairro","Cidade","UF","Cep","Tel","Naturalidade","Cor","E-mail","Deficiencia","CBO","GFIP","Endereço Unidade","Bairro Unidade","Cidade Unidade","Estado Unidade","Cep Unidade","CNPJ Unidade","Inscrição Unidade","Tel1 Unidade","Tel2 Unidade","Tel3 Unidade","Tel4 Unidade","Contato Unid","Cnae","Número Endereço Funcionário","Complemento Endereço Funcionário","Razão Social Unid.","Nome da Mae do Funcionário","Cod.Centro Custo","Dt. Ultima Movimentação","Cod. Unidade contratante","Razão Social","CNPJ","Turno","Dt.Emissão.Cart.Prof","Série CTPS","CNAE 2.0","CNAE Livre","Descrição CNAE Livre","CEI","Função","CNAE 7","Tipo de CNAE Utilizado","Descrição Detalhada do Cargo","Nº endereço Unidade","Complemento endereço Unidade","Regime de Revezamento","Orgão Expedidor do RG","Campo Livre 1","Campo Livre 2","Campo Livre 3","Telefone SMS","Grau de Risco","UF CTPS","Nome Centro Custo","Autoriza SMS","Endereço Cobrança Unidade","Número Endereço Cobrança Unidade","Bairro Cobrança Unidade","Cidade Cobrança Unidade","Estado Cobrança Unidade","Cep Cobrança Unidade","Complemento Endereço Cobrança Unidade","Remuneração Mensal (R$)","Telefone Comercial","Telefone Celular","Data Emissão RG","Código do País de Nascimento","Origem Descrição Detalhada","Unidade Contratante","Escolaridade","Código Categoria (eSocial)","Matrícula RH","Gênero","Nome Social","Tipo de Admissão","Grau de Instrução","Nome do Pai do Funcionário","Tipo de Vínculo","Nome do Turno","Campo Livre 4","CPF Unidade","CAEPF Unidade","Tipo Sanguíneo","Dt. Inicio Periodo Aquisitivo","Dt. Fim Periodo Aquisitivo","CNO Unidade","Desconsiderar para o eSocial","Dt. Validade RG","Desconsiderar Unidade para o eSocial"];
+                const outputData = [
+                    ['Modelo 1'],
+                    modelHeaders,
+                    ...data.map((emp, index) => {
+                        const row = new Array(modelHeaders.length).fill('');
+                        row[0] = codUnid;
+                        row[1] = nomeUnidade;
+                        row[7] = index + 1;
+                        row[8] = emp.nome || '';
+                        row[19] = emp.cpf || '';
+                        row[9] = emp.dataNascimento || '';
+                        row[12] = emp.dataAdmissao || '';
+                        row[6] = emp.matricula || '';
+                        row[11] = 'S';
+                        row[3] = formatTitleCase(emp.nomeSetor);
+                        row[5] = formatTitleCase(emp.nomeCargo);
+                        row[10] = (emp.sexo && emp.sexo.toUpperCase().startsWith('M')) ? 'M' : (emp.sexo && emp.sexo.toUpperCase().startsWith('F')) ? 'F' : '';
+                        return row;
+                    })
+                ];
+
+                const worksheet = XLSX.utils.aoa_to_sheet(outputData);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Modelo SOC Gerado");
+                XLSX.writeFile(workbook, "Modelo_SOC_Gerado.xlsx");
+            };
+
+            const handleGenerateModel = async () => {
+                if (!companyFile || !codUnid || !nomeUnidade || !companyColumnMap) {
+                    setError({ title: 'Dados Faltando', message: 'Por favor, preencha o Código e Nome da Unidade, selecione a planilha da empresa e confirme o mapeamento de colunas.' });
+                    return;
+                }
+                setIsLoading(true);
+                setError(null);
+                try {
+                    const { jsonData } = await readSheetData(companyFile);
+                    const standardizedData = standardizeData(jsonData, companyColumnMap);
+
+                    const requiredFields = ['nome', 'cpf', 'dataNascimento', 'dataAdmissao', 'matricula', 'nomeCargo', 'nomeSetor'];
+                    const employeesWithMissingData = standardizedData.map((emp, index) => {
+                        const missing = requiredFields.filter(field => !emp[field]);
+                        return { ...emp, missing, index: index + 2 }; // +2 para contar cabeçalho e ser 1-based
+                    }).filter(emp => emp.missing.length > 0);
+
+                    if (employeesWithMissingData.length > 0) {
+                        setDataForIncompleteGeneration(standardizedData);
+                        setMissingDataError(employeesWithMissingData);
+                    } else {
+                        proceedWithGeneration(standardizedData);
+                    }
+                } catch (e) {
+                     setError({ title: `Erro ao Gerar Modelo`, message: e.message, suggestion: "Verifique o arquivo da empresa e tente novamente." });
+                } finally {
+                    setIsLoading(false);
+                }
             };
 
             return (
@@ -727,7 +816,7 @@
                             <button onClick={() => setMode('generate')} className={`w-1/2 py-2 rounded-md font-semibold transition-colors ${mode === 'generate' ? 'bg-blue-600 text-white' : (theme === 'dark' ? 'hover:bg-gray-700' : 'hover:bg-gray-300')}`}>Gerar Modelo SOC</button>
                         </div>
                         
-                        {mode === 'compare' && (
+                        {mode === 'compare' ? (
                             <>
                                 <Notice theme={theme} />
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -740,13 +829,27 @@
                                     </button>
                                 </div>
                             </>
-                        )}
-                        
-                        {/* MODO GERAR MODELO (não foi alterado) */}
-                        {mode === 'generate' && (
-                            <div className="text-center text-gray-400 p-8">
-                                <p>A funcionalidade 'Gerar Modelo SOC' será implementada em breve.</p>
-                            </div>
+                        ) : (
+                            <>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                                    <div>
+                                        <label htmlFor="codUnid" className={`block text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} mb-2`}>1. Código da Unidade</label>
+                                        <input id="codUnid" type="text" value={codUnid} onChange={(e) => setCodUnid(e.target.value)} className={`w-full p-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-600 border-gray-500' : 'bg-white border-gray-300'}`} />
+                                    </div>
+                                    <div>
+                                        <label htmlFor="nomeUnidade" className={`block text-sm font-medium ${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} mb-2`}>2. Nome da Unidade</label>
+                                        <input id="nomeUnidade" type="text" value={nomeUnidade} onChange={(e) => setNomeUnidade(e.target.value)} className={`w-full p-2 rounded-lg border ${theme === 'dark' ? 'bg-gray-600 border-gray-500' : 'bg-white border-gray-300'}`} />
+                                    </div>
+                                </div>
+                                <div className="mb-8">
+                                    <FileInput id="company-file-generate" label="3. Planilha do Cliente" onFileSelect={(file) => handleFileSelect(file, 'company')} fileInfo={companyFileInfo} theme={theme} />
+                                </div>
+                                <div className="text-center">
+                                    <button onClick={handleGenerateModel} disabled={isLoading} className="bg-blue-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-blue-700 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 disabled:bg-gray-500">
+                                        {isLoading ? 'Gerando...' : 'Gerar Modelo SOC'}
+                                    </button>
+                                </div>
+                            </>
                         )}
 
                         <div className="mt-10">
@@ -823,6 +926,16 @@
                         onConfirm={onMappingConfirm}
                         fileHeaders={mappingModal.headers}
                         fileName={mappingModal.file?.name}
+                        theme={theme}
+                    />
+                    <MissingDataModal 
+                        isOpen={!!missingDataError} 
+                        onClose={() => setMissingDataError(null)}
+                        onConfirm={() => {
+                            proceedWithGeneration(dataForIncompleteGeneration);
+                            setMissingDataError(null);
+                        }}
+                        missingData={missingDataError}
                         theme={theme}
                     />
                 </div>
